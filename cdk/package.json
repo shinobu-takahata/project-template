@@ -1,0 +1,15 @@
+{
+  "name": "cdk",
+  "version": "0.1.0",
+  "description": "AWS CDK infrastructure code",
+  "scripts": {
+    "cdk": "cdk"
+  },
+  "devDependencies": {
+    "aws-cdk": "^2.100.0"
+  },
+  "dependencies": {
+    "aws-cdk-lib": "^2.100.0",
+    "constructs": "^10.0.0"
+  }
+}
