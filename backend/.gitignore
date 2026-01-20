@@ -31,7 +31,9 @@ env/
 uv.lock
 
 # IDEs
-.vscode/
+# Only track launch.json (settings/extensions are defined in devcontainer.json)
+.vscode/*
+!.vscode/launch.json
 .idea/
 *.swp
 *.swo
