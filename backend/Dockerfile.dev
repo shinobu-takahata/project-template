@@ -1,15 +1,24 @@
-FROM python:3.11-slim
+FROM python:3.12-slim
+
+# 非rootユーザー作成（ホームディレクトリ付き）
+RUN groupadd -r appuser && useradd -r -g appuser -m appuser
 
 WORKDIR /app
 
-# uvインストール（pip経由）
-RUN pip install --no-cache-dir uv
+# uvインストール（バージョン固定）
+RUN pip install --no-cache-dir uv==0.5.11
 
 # 依存関係ファイルコピー
-COPY pyproject.toml ./
+COPY --chown=appuser:appuser pyproject.toml ./
 
 # 依存関係インストール
 RUN uv sync
+
+# /appディレクトリの所有権を変更
+RUN chown -R appuser:appuser /app
+
+# 非rootユーザーに切り替え
+USER appuser
 
 # アプリケーションコードはvolume経由でマウント
 
