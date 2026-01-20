@@ -1,10 +1,11 @@
 from sqlalchemy.orm import Session
 
 from app.domain.example import Example
+from app.domain.repositories.example_repository import IExampleRepository
 from app.infrastructure.database.models import ExampleModel
 
 
-class ExampleRepository:
+class ExampleRepository(IExampleRepository):
     """サンプルリポジトリ"""
 
     def __init__(self, db: Session):
