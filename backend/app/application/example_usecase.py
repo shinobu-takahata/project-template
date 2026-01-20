@@ -1,18 +1,15 @@
 from datetime import datetime
 
-from sqlalchemy.orm import Session
-
 from app.domain.example import Example
 from app.domain.repositories.example_repository import IExampleRepository
-from app.infrastructure.repositories.example_repository import ExampleRepository
 from app.schemas.example import ExampleCreate
 
 
 class ExampleUseCase:
     """サンプルユースケース"""
 
-    def __init__(self, db: Session):
-        self.repository: IExampleRepository = ExampleRepository(db)
+    def __init__(self, repository: IExampleRepository):
+        self.repository = repository
 
     def create_example(self, data: ExampleCreate) -> Example:
         """サンプル作成"""
