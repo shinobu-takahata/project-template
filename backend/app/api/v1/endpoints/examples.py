@@ -10,7 +10,7 @@ router = APIRouter()
 
 
 @router.post("/", response_model=ExampleResponse, status_code=201)
-async def create_example(data: ExampleCreate, db: Session = Depends(get_db)):
+def create_example(data: ExampleCreate, db: Session = Depends(get_db)):
     """サンプル作成"""
     repository = ExampleRepository(db)
     usecase = ExampleUseCase(repository)
@@ -19,7 +19,7 @@ async def create_example(data: ExampleCreate, db: Session = Depends(get_db)):
 
 
 @router.get("/{example_id}", response_model=ExampleResponse)
-async def get_example(example_id: int, db: Session = Depends(get_db)):
+def get_example(example_id: int, db: Session = Depends(get_db)):
     """サンプル取得"""
     repository = ExampleRepository(db)
     usecase = ExampleUseCase(repository)
@@ -30,7 +30,7 @@ async def get_example(example_id: int, db: Session = Depends(get_db)):
 
 
 @router.get("/", response_model=list[ExampleResponse])
-async def list_examples(db: Session = Depends(get_db)):
+def list_examples(db: Session = Depends(get_db)):
     """サンプル一覧"""
     repository = ExampleRepository(db)
     usecase = ExampleUseCase(repository)
