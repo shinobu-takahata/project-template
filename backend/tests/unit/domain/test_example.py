@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.domain.example import Example
 
@@ -9,7 +9,7 @@ class TestExample:
 
     def test_create_example(self):
         """エンティティ生成のテスト"""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         example = Example(
             id=1,
             name="Test",
@@ -23,7 +23,7 @@ class TestExample:
 
     def test_update_name_success(self):
         """名前更新の正常系テスト"""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         example = Example(
             id=1, name="Old Name", description=None, created_at=now, updated_at=now
         )
@@ -35,7 +35,7 @@ class TestExample:
 
     def test_update_name_with_empty_string_raises_error(self):
         """空文字列での名前更新は失敗する"""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         example = Example(
             id=1, name="Old Name", description=None, created_at=now, updated_at=now
         )
@@ -45,7 +45,7 @@ class TestExample:
 
     def test_update_name_with_whitespace_only_raises_error(self):
         """空白文字のみでの名前更新は失敗する"""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         example = Example(
             id=1, name="Old Name", description=None, created_at=now, updated_at=now
         )
@@ -55,7 +55,7 @@ class TestExample:
 
     def test_update_name_preserves_other_fields(self):
         """名前更新時に他のフィールドは保持される"""
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         example = Example(
             id=1,
             name="Old Name",

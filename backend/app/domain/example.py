@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import UTC, datetime
 
 
 @dataclass
@@ -17,4 +17,4 @@ class Example:
         if not new_name or len(new_name.strip()) == 0:
             raise ValueError("Name cannot be empty")
         self.name = new_name
-        self.updated_at = datetime.utcnow()
+        self.updated_at = datetime.now(UTC)

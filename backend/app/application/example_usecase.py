@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import UTC, datetime
 
 from app.domain.example import Example
 from app.domain.repositories.example_repository import IExampleRepository
@@ -18,8 +18,8 @@ class ExampleUseCase:
             id=0,  # DBで自動採番
             name=data.name,
             description=data.description,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow(),
+            created_at=datetime.now(UTC),
+            updated_at=datetime.now(UTC),
         )
         return self.repository.save(example)
 
