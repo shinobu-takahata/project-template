@@ -1,6 +1,12 @@
-FROM node:20-alpine
+FROM node:20-slim
 
 WORKDIR /cdk
+
+# 必要なツールをインストール
+RUN apt-get update && apt-get install -y \
+    git \
+    bash \
+    && rm -rf /var/lib/apt/lists/*
 
 # AWS CDK CLIグローバルインストール
 RUN npm install -g aws-cdk
@@ -9,4 +15,6 @@ RUN npm install -g aws-cdk
 COPY package*.json ./
 RUN npm install
 
-CMD ["sh"]
+# アプリケーションコードはvolume経由でマウント
+
+CMD ["tail", "-f", "/dev/null"]
