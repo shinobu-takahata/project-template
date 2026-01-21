@@ -54,6 +54,10 @@
   ],
   "remoteEnv": {
     "PYTHONUNBUFFERED": "1",
-    "ENV": "development"
+    "ENV": "development",
+    "SHELL": "/bin/bash"
+  },
+  "containerEnv": {
+    "SHELL": "/bin/bash"
   }
 }
