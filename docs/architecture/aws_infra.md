@@ -29,6 +29,24 @@ Client → Route53 → Amplify (Frontend)
 ### VPC設計
 - **リージョン**: ap-northeast-1 (東京)
 - **Availability Zones**: 2つのAZ（AZ-1, AZ-2）を使用
+- **インターネット接続**: パブリックサブネットはインターネットゲートウェイ経由、プライベートサブネットはVPCエンドポイント経由でAWSサービスにアクセス
+
+### VPCエンドポイント（コスト最適化）
+NAT Gatewayの代わりにVPCエンドポイントを使用し、コストを削減します（月額約$35の節約）。
+
+#### Gateway型エンドポイント（無料）
+- **S3**: ログ保存、静的ファイルアクセス用
+
+#### Interface型エンドポイント（有料: 約$7.2/月/個）
+- **ECR API**: ECRリポジトリへのAPI呼び出し用
+- **ECR DKR**: Dockerイメージのプル用
+- **Secrets Manager**: データベース認証情報の取得用
+- **CloudWatch Logs**: ログ出力用
+
+**コスト比較**:
+- NAT Gateway方式: 約$64/月（2個 × $32） + データ転送料
+- VPCエンドポイント方式: 約$28.8/月（Interface型 × 4個） + $0（Gateway型）
+- **削減額**: 約$35/月（年間約$420）
 
 ### サブネット設計
 
@@ -45,7 +63,7 @@ Client → Route53 → Amplify (Frontend)
 - **用途**:
   - ECS Fargateタスクの実行
   - Aurora（データベース）の配置
-  - 外部へのアクセスはNAT Gateway経由
+  - 外部へのアクセスはVPCエンドポイント経由（AWSサービスのみ）
 
 ## コンピューティング
 
@@ -274,5 +292,6 @@ Client → Route53 → Amplify (Frontend)
   - warning-alerts: 警告レベルのアラート
 
 ## 更新履歴
+- 2026-01-22: NAT GatewayをVPCエンドポイントに変更（コスト最適化）
 - 2026-01-21: Fluent Bit、CloudWatch Alarms、SNS、ECRライフサイクル設定追加、Aurora構成変更、Amplifyを将来実装に変更
 - 2026-01-19: 初版作成

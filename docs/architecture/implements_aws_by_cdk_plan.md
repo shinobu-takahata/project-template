@@ -32,7 +32,7 @@ cdk/
 │   └── app.ts                          # CDKアプリケーションのエントリーポイント
 ├── lib/
 │   ├── stacks/
-│   │   ├── network-stack.ts            # VPC、サブネット、NAT Gateway、Route53
+│   │   ├── network-stack.ts            # VPC、サブネット、VPCエンドポイント、Route53
 │   │   ├── security-stack.ts           # GuardDuty、Config、WAF
 │   │   ├── database-stack.ts           # Aurora PostgreSQL
 │   │   ├── compute-stack.ts            # ECS、Fargate、ALB、ECR、Fluent Bit
@@ -123,12 +123,12 @@ cdk/
 - VPCの作成（ap-northeast-1、CIDR: 環境設定から取得）
 - 2つのAvailability Zoneの選択
 - パブリックサブネット × 2（各AZに1つ）
-- プライベートサブネット × 2（各AZに1つ）
-- インターネットゲートウェイ
-- NAT Gateway × 2（各AZのパブリックサブネットに配置）
-  - 開発環境: コスト削減のため1つでも可（要検討）
+- プライベートサブネット × 2（各AZに1つ）- **インターネット接続なし**（Isolated Subnet）
+- インターネットゲートウェイ（パブリックサブネット用）
 - ルートテーブルの設定
 - VPCフローログ（CloudWatch Logsへ）
+
+**重要**: NAT Gatewayは作成しません。代わりにVPCエンドポイントを使用します（次セクション2.1.1）。
 
 **成果物**:
 - `cdk/lib/constructs/multi-az-vpc.ts`
@@ -142,12 +142,109 @@ import * as ec2 from 'aws-cdk-lib/aws-ec2';
 
 const vpc = new ec2.Vpc(this, 'VPC', {
   maxAzs: 2,
-  natGateways: 2, // 開発環境は1でも可
+  natGateways: 0, // NAT Gatewayは使用しない（コスト最適化）
+  subnetConfiguration: [
+    {
+      name: 'Public',
+      subnetType: ec2.SubnetType.PUBLIC,
+      cidrMask: 24
+    },
+    {
+      name: 'Private',
+      subnetType: ec2.SubnetType.PRIVATE_ISOLATED, // インターネット接続なし
+      cidrMask: 24
+    }
+  ],
   flowLogs: {
     cloudwatch: {
       destination: ec2.FlowLogDestination.toCloudWatchLogs()
     }
   }
+});
+```
+
+---
+
+#### 2.1.1 VPCエンドポイントの作成（コスト最適化）
+**目的**: NAT Gatewayの代わりにVPCエンドポイントを使用してAWSサービスにアクセス
+
+**実装内容**:
+- **Gateway型エンドポイント**（無料）:
+  - **S3**: ログ保存、静的ファイルアクセス用
+  - プライベートサブネットのルートテーブルに自動追加
+- **Interface型エンドポイント**（有料: 約$7.2/月/個）:
+  - **ECR API** (`com.amazonaws.ap-northeast-1.ecr.api`): ECRリポジトリAPI用
+  - **ECR DKR** (`com.amazonaws.ap-northeast-1.ecr.dkr`): Dockerイメージプル用
+  - **Secrets Manager** (`com.amazonaws.ap-northeast-1.secretsmanager`): DB認証情報取得用
+  - **CloudWatch Logs** (`com.amazonaws.ap-northeast-1.logs`): ログ出力用
+  - プライベートサブネットに配置（マルチAZ）
+  - セキュリティグループ: ECSタスクからのHTTPS (443) アクセスを許可
+  - プライベートDNSの有効化
+
+**コスト比較**:
+- NAT Gateway方式: 約$64/月（2個 × $32） + データ転送料
+- VPCエンドポイント方式: 約$28.8/月（Interface型 × 4個） + $0（Gateway型）
+- **削減額**: 約$35/月（年間約$420）
+
+**成果物**:
+- `cdk/lib/stacks/network-stack.ts`（追加）
+
+**依存関係**: 2.1（VPC）
+
+**参考CDKリソース**:
+```typescript
+import * as ec2 from 'aws-cdk-lib/aws-ec2';
+
+// Gateway型エンドポイント（無料）
+vpc.addGatewayEndpoint('S3Endpoint', {
+  service: ec2.GatewayVpcEndpointAwsService.S3,
+  subnets: [{ subnetType: ec2.SubnetType.PRIVATE_ISOLATED }]
+});
+
+// Interface型エンドポイント用セキュリティグループ
+const vpcEndpointSg = new ec2.SecurityGroup(this, 'VpcEndpointSg', {
+  vpc,
+  description: 'Security group for VPC endpoints',
+  allowAllOutbound: false
+});
+
+// ECSタスクからのHTTPSアクセスを許可（後でECSセキュリティグループから追加）
+vpcEndpointSg.addIngressRule(
+  ec2.Peer.ipv4(vpc.vpcCidrBlock),
+  ec2.Port.tcp(443),
+  'Allow HTTPS from VPC'
+);
+
+// ECR API エンドポイント
+vpc.addInterfaceEndpoint('EcrApiEndpoint', {
+  service: ec2.InterfaceVpcEndpointAwsService.ECR,
+  subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+  securityGroups: [vpcEndpointSg],
+  privateDnsEnabled: true
+});
+
+// ECR DKR エンドポイント
+vpc.addInterfaceEndpoint('EcrDkrEndpoint', {
+  service: ec2.InterfaceVpcEndpointAwsService.ECR_DOCKER,
+  subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+  securityGroups: [vpcEndpointSg],
+  privateDnsEnabled: true
+});
+
+// Secrets Manager エンドポイント
+vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
+  service: ec2.InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
+  subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+  securityGroups: [vpcEndpointSg],
+  privateDnsEnabled: true
+});
+
+// CloudWatch Logs エンドポイント
+vpc.addInterfaceEndpoint('CloudWatchLogsEndpoint', {
+  service: ec2.InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
+  subnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED },
+  securityGroups: [vpcEndpointSg],
+  privateDnsEnabled: true
 });
 ```
 
@@ -339,7 +436,7 @@ const cluster = new rds.DatabaseCluster(this, 'AuroraCluster', {
     })
   ],
   vpc,
-  vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_WITH_EGRESS }
+  vpcSubnets: { subnetType: ec2.SubnetType.PRIVATE_ISOLATED }
 });
 ```
 
@@ -729,7 +826,7 @@ criticalTopic.addSubscription(
   - リクエスト数
   - レイテンシ
   - エラー率（4xx、5xx）
-- **NAT Gateway データ転送量**
+- **VPCエンドポイント データ転送量**
 - ウィジェットの配置
 
 **成果物**:
@@ -998,7 +1095,7 @@ export const devConfig: EnvConfig = {
   availabilityZones: ['ap-northeast-1a', 'ap-northeast-1c'],
   publicSubnetCidrs: ['10.0.1.0/24', '10.0.2.0/24'],
   privateSubnetCidrs: ['10.0.11.0/24', '10.0.12.0/24'],
-  natGateways: 1, // コスト削減のため1つ
+  useVpcEndpoints: true, // VPCエンドポイントを使用（NAT Gatewayの代替）
   ecs: {
     cpu: 512,
     memory: 1024,
@@ -1025,7 +1122,7 @@ export const prodConfig: EnvConfig = {
   availabilityZones: ['ap-northeast-1a', 'ap-northeast-1c'],
   publicSubnetCidrs: ['10.1.1.0/24', '10.1.2.0/24'],
   privateSubnetCidrs: ['10.1.11.0/24', '10.1.12.0/24'],
-  natGateways: 2, // 高可用性のため2つ
+  useVpcEndpoints: true, // VPCエンドポイントを使用（NAT Gatewayの代替）
   ecs: {
     cpu: 1024,
     memory: 2048,
@@ -1045,9 +1142,11 @@ export const prodConfig: EnvConfig = {
 
 ## コスト最適化のポイント
 
-1. **NAT Gateway**:
-   - 開発環境: 1つ（約$45/月削減）
-   - 本番環境: 2つ（高可用性優先）
+1. **VPCエンドポイント（NAT Gatewayの代替）**:
+   - NAT Gateway方式: 約$64/月（2個 × $32） + データ転送料
+   - VPCエンドポイント方式: 約$28.8/月（Interface型 × 4個） + $0（Gateway型）
+   - **削減額**: 約$35/月（年間約$420）
+   - 対象サービス: S3（Gateway型、無料）、ECR、Secrets Manager、CloudWatch Logs（Interface型）
 
 2. **ログ保存**:
    - ERRORログのみCloudWatch Logs（大幅コスト削減）
@@ -1189,4 +1288,4 @@ export const prodConfig: EnvConfig = {
 6. **モニタリング強化**: X-Rayによる分散トレーシング
 
 ## 更新履歴
-- 2026-01-22: 初版作成
+- 2026-01-22: 初版作成、NAT GatewayをVPCエンドポイントに変更（コスト最適化: 年間約$420削減）
