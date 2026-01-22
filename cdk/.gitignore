@@ -1,35 +1,5 @@
-# Node.js
-node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-
-# TypeScript
+node_modules
+cdk.out
 *.js
-!jest.config.js
 *.d.ts
-
-# CDK
-cdk.out/
-.cdk.staging/
-
-# Testing
-coverage/
-
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-
-# Environment variables
-.env
-.env.local
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Logs
-*.log
+!jest.config.js
