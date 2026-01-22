@@ -10,7 +10,8 @@
       "extensions": [
         "dbaeumer.vscode-eslint",
         "esbenp.prettier-vscode",
-        "amazonwebservices.aws-toolkit-vscode"
+        "amazonwebservices.aws-toolkit-vscode",
+        "anthropic.claude-code"
       ],
       "settings": {
         "[typescript]": {
