@@ -34,6 +34,13 @@ export interface EnvConfig {
 
   // ドメイン設定
   domainName: string;
+
+  // 削除ポリシー設定
+  removalPolicy: {
+    s3Buckets: 'RETAIN' | 'DESTROY';
+    logGroups: 'RETAIN' | 'DESTROY';
+    database: 'RETAIN' | 'SNAPSHOT' | 'DESTROY';
+  };
 }
 
 export function getEnvConfig(envName: string): EnvConfig {

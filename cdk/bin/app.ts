@@ -1,5 +1,8 @@
 #!/usr/bin/env node
 import * as cdk from 'aws-cdk-lib';
+import { NetworkStack } from '../lib/stacks/network-stack';
+import { SecurityStack } from '../lib/stacks/security-stack';
+import { DatabaseStack } from '../lib/stacks/database-stack';
 import { getEnvConfig } from '../lib/config/env-config';
 
 const app = new cdk.App();
@@ -14,12 +17,27 @@ const env = {
   region: config.region
 };
 
-// スタック作成の準備（フェーズ2以降で実装）
-// 例:
-// const networkStack = new NetworkStack(app, `NetworkStack-${envName}`, {
-//   env,
-//   config
-// });
+// NetworkStackの作成
+const networkStack = new NetworkStack(app, `NetworkStack-${envName}`, {
+  env,
+  config
+});
+
+// SecurityStackの作成
+const securityStack = new SecurityStack(app, `SecurityStack-${envName}`, {
+  env,
+  config
+});
+
+// DatabaseStackの作成
+const databaseStack = new DatabaseStack(app, `DatabaseStack-${envName}`, {
+  env,
+  config,
+  vpc: networkStack.vpc
+});
+
+// 依存関係の設定
+databaseStack.addDependency(networkStack);
 
 // CDKアプリケーションの合成
 app.synth();

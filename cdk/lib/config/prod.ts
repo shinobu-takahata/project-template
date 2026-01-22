@@ -31,5 +31,12 @@ export const prodConfig: EnvConfig = {
   logRetentionDays: 30,
 
   // ドメイン設定
-  domainName: 'api.example.com'
+  domainName: 'api.example.com',
+
+  // 削除ポリシー設定（本番環境はデータ保護）
+  removalPolicy: {
+    s3Buckets: 'RETAIN',     // S3バケットは保持
+    logGroups: 'RETAIN',      // ロググループは保持
+    database: 'SNAPSHOT'      // 削除前にスナップショット作成
+  }
 };

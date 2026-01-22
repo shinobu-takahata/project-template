@@ -31,5 +31,12 @@ export const devConfig: EnvConfig = {
   logRetentionDays: 7,
 
   // ドメイン設定
-  domainName: 'dev-api.example.com'
+  domainName: 'dev-api.example.com',
+
+  // 削除ポリシー設定（開発環境は完全削除可能）
+  removalPolicy: {
+    s3Buckets: 'DESTROY',   // S3バケットも削除
+    logGroups: 'DESTROY',    // ロググループも削除
+    database: 'DESTROY'      // DBも完全削除（スナップショット不要）
+  }
 };

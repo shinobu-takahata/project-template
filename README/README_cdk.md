@@ -239,3 +239,9 @@ aws cloudformation describe-stacks --stack-name <stack-name>
 - AWS CDK API Reference: https://docs.aws.amazon.com/cdk/api/v2/
 - AWS CDK Examples: https://github.com/aws-samples/aws-cdk-examples
 - AWS CLI Reference: https://docs.aws.amazon.com/cli/
+
+
+
+<!-- export AWS_PROFILE=takahata && export AWS_REGION=ap-northeast-1 && cdk destroy NetworkStack-dev --context env=dev --force
+5  cdk synth SecurityStack-dev -c env=dev
+6  cdk deploy SecurityStack-dev -c env=dev -->
