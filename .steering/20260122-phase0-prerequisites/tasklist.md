@@ -17,24 +17,60 @@
 ---
 
 ### 2. AWS認証情報の確認
-- [ ] **2.1** AWS認証情報がコンテナ内で利用可能であることを確認（`~/.aws` マウント確認）
-- [ ] **2.2** AWS CLIで認証情報を確認（`aws configure list`）
-- [ ] **2.3** アカウントIDを取得（`aws sts get-caller-identity`）
-- [ ] **2.4** リージョン設定を確認（`aws configure get region`）→ ap-northeast-1が推奨
-- [ ] **2.5** 必要なIAM権限があることを確認（CloudFormation、IAM、S3、ECR等）
+- [ ] **2.1** AWS認証情報がコンテナ内で利用可能であることを確認
+  ```bash
+  docker-compose exec cdk ls -la /root/.aws
+  ```
+- [ ] **2.2** 利用可能なプロファイルを確認
+  ```bash
+  docker-compose exec cdk cat /root/.aws/config
+  ```
+- [ ] **2.3** AWS_PROFILEとAWS_REGIONを設定
+  ```bash
+  # コンテナ内で実行（your-profile-nameは実際のプロファイル名に置き換える）
+  export AWS_PROFILE=your-profile-name
+  export AWS_REGION=ap-northeast-1
+  ```
+  **または**、docker-composeで環境変数を渡す:
+  ```bash
+  docker-compose exec -e AWS_PROFILE=your-profile-name cdk bash
+  ```
+- [ ] **2.4** アカウントIDを取得
+  ```bash
+  aws sts get-caller-identity
+  ```
+  期待される出力: アカウントID、UserID、ARNが表示される
+- [ ] **2.5** 必要なIAM権限があることを確認（CloudFormation、IAM、S3、ECR等へのアクセス権限）
 
 **完了条件**: AWS CLIでアカウント情報が正常に取得でき、必要な権限があること
+
+**注意事項**:
+- `default` プロファイルが存在しない場合、`AWS_PROFILE` の明示的な指定が必須
+- プロファイル名はハードコードせず、実行時に指定すること
 
 ---
 
 ### 3. AWS CDK Bootstrapの実行
-- [ ] **3.1** アカウントIDを環境変数に設定
+- [ ] **3.1** AWS_PROFILEとAWS_REGIONを設定（タスク2.3で設定済みの場合はスキップ）
+  ```bash
+  export AWS_PROFILE=your-profile-name
+  export AWS_REGION=ap-northeast-1
+  ```
+- [ ] **3.2** アカウントIDを環境変数に設定
   ```bash
   export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text)
   echo $AWS_ACCOUNT_ID
   ```
-- [ ] **3.2** CDK Bootstrap実行
+  期待される出力: 12桁のアカウントID
+- [ ] **3.3** CDK Bootstrap実行
   ```bash
+  cdk bootstrap aws://${AWS_ACCOUNT_ID}/ap-northeast-1
+  ```
+  **または**、ワンライナーで実行:
+  ```bash
+  export AWS_PROFILE=your-profile-name && \
+  export AWS_REGION=ap-northeast-1 && \
+  export AWS_ACCOUNT_ID=$(aws sts get-caller-identity --query Account --output text) && \
   cdk bootstrap aws://${AWS_ACCOUNT_ID}/ap-northeast-1
   ```
 - [ ] **3.3** CloudFormation Stackの作成確認

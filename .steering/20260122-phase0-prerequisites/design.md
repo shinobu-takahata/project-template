@@ -50,23 +50,35 @@ cdk --version
 コンテナ内から以下のコマンドでAWS認証を確認します：
 
 ```bash
-# プロファイル設定確認
-aws configure list
+# 利用可能なプロファイルを確認
+cat ~/.aws/config
+
+# AWS_PROFILEを設定（使用するプロファイル名に置き換える）
+export AWS_PROFILE=your-profile-name
+
+# リージョンを設定
+export AWS_REGION=ap-northeast-1
 
 # アカウント情報取得
 aws sts get-caller-identity
-
-# リージョン確認
-aws configure get region
 ```
 
 **認証情報の提供方法**:
-- ホストマシンの `~/.aws` ディレクトリをコンテナにマウント
-- または環境変数 `AWS_ACCESS_KEY_ID`、`AWS_SECRET_ACCESS_KEY`、`AWS_REGION` を設定
+- ホストマシンの `~/.aws` ディレクトリをコンテナにマウント（docker-compose.yml で設定済み）
+- **重要**: `AWS_PROFILE` 環境変数を明示的に設定する必要があります
+  - `default` プロファイルが存在しない場合、プロファイル名の指定が必須
+  - 推奨: コンテナ起動時に `-e AWS_PROFILE=your-profile-name` を指定
+  - または、コンテナ内で `export AWS_PROFILE=your-profile-name` を実行
 
 **期待される出力**:
 - アカウントIDとARNが取得できる
-- リージョンが `ap-northeast-1` または設定されている
+  ```json
+  {
+      "UserId": "AIDA...",
+      "Account": "123456789012",
+      "Arn": "arn:aws:iam::123456789012:user/your-user"
+  }
+  ```
 
 ### 3. AWS CDK Bootstrap実行
 コンテナ内から以下のコマンドを実行します：
