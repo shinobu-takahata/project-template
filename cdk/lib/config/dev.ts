@@ -20,9 +20,9 @@ export const devConfig: EnvConfig = {
     maxCapacity: 10
   },
 
-  // Aurora設定（開発環境はt4g.medium）
+  // Aurora設定（開発環境はt3.medium - Aurora PostgreSQLサポート）
   aurora: {
-    instanceClass: 'db.t4g.medium',
+    instanceClass: 'db.t3.medium',
     backupRetentionDays: 7,
     deletionProtection: false  // 開発環境は削除保護なし
   },

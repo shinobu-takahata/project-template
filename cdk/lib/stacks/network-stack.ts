@@ -1,9 +1,21 @@
-import { Stack, StackProps, RemovalPolicy, CfnOutput, Tags } from 'aws-cdk-lib';
-import { Vpc, SubnetType, IpAddresses, SecurityGroup, Peer, Port, GatewayVpcEndpointAwsService, InterfaceVpcEndpointAwsService, FlowLogDestination, FlowLogTrafficType } from 'aws-cdk-lib/aws-ec2';
-import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs';
-import { IHostedZone } from 'aws-cdk-lib/aws-route53';
-import { Construct } from 'constructs';
-import { EnvConfig } from '../config/env-config';
+import { Stack, StackProps, RemovalPolicy, CfnOutput, Tags } from "aws-cdk-lib";
+import {
+  Vpc,
+  SubnetType,
+  IpAddresses,
+  SecurityGroup,
+  Peer,
+  Port,
+  GatewayVpcEndpointAwsService,
+  InterfaceVpcEndpointAwsService,
+  FlowLogDestination,
+  FlowLogTrafficType,
+} from "aws-cdk-lib/aws-ec2";
+import { LogGroup, RetentionDays } from "aws-cdk-lib/aws-logs";
+import { IHostedZone } from "aws-cdk-lib/aws-route53";
+import { Construct } from "constructs";
+import { EnvConfig } from "../config/env-config";
+import { Lambda } from "aws-cdk-lib/aws-ses-actions";
 
 export interface NetworkStackProps extends StackProps {
   config: EnvConfig;
@@ -19,29 +31,31 @@ export class NetworkStack extends Stack {
     const { config } = props;
 
     // VPCフローログ用のロググループ
-    const flowLogGroup = new LogGroup(this, 'VpcFlowLogGroup', {
+    const flowLogGroup = new LogGroup(this, "VpcFlowLogGroup", {
       logGroupName: `/aws/vpc/flowlogs/${config.envName}`,
-      retention: config.logRetentionDays === 7 
-        ? RetentionDays.ONE_WEEK 
-        : RetentionDays.ONE_MONTH,
-      removalPolicy: config.removalPolicy.logGroups === 'DESTROY'
-        ? RemovalPolicy.DESTROY
-        : RemovalPolicy.RETAIN,
+      retention:
+        config.logRetentionDays === 7
+          ? RetentionDays.ONE_WEEK
+          : RetentionDays.ONE_MONTH,
+      removalPolicy:
+        config.removalPolicy.logGroups === "DESTROY"
+          ? RemovalPolicy.DESTROY
+          : RemovalPolicy.RETAIN,
     });
 
     // VPC作成
-    this.vpc = new Vpc(this, 'Vpc', {
+    this.vpc = new Vpc(this, "Vpc", {
       ipAddresses: IpAddresses.cidr(config.vpcCidr),
       availabilityZones: config.availabilityZones,
       natGateways: 0, // NAT Gatewayは使用しない（コスト最適化）
       subnetConfiguration: [
         {
-          name: 'Public',
+          name: "Public",
           subnetType: SubnetType.PUBLIC,
           cidrMask: 24,
         },
         {
-          name: 'Private',
+          name: "Private",
           subnetType: SubnetType.PRIVATE_ISOLATED, // インターネット接続なし
           cidrMask: 24,
         },
@@ -55,9 +69,9 @@ export class NetworkStack extends Stack {
     });
 
     // タグ付け
-    Tags.of(this.vpc).add('Environment', config.envName);
-    Tags.of(this.vpc).add('Project', 'project-template');
-    Tags.of(this.vpc).add('ManagedBy', 'CDK');
+    Tags.of(this.vpc).add("Environment", config.envName);
+    Tags.of(this.vpc).add("Project", "project-template");
+    Tags.of(this.vpc).add("ManagedBy", "CDK");
 
     // VPCエンドポイントの作成（useVpcEndpointsがtrueの場合）
     if (config.useVpcEndpoints) {
@@ -84,29 +98,42 @@ export class NetworkStack extends Stack {
     */
 
     // スタック出力
-    new CfnOutput(this, 'VpcId', {
+    new CfnOutput(this, "VpcId", {
       value: this.vpc.vpcId,
-      description: 'VPC ID',
+      description: "VPC ID",
       exportName: `${config.envName}-VpcId`,
     });
 
-    new CfnOutput(this, 'VpcCidr', {
+    new CfnOutput(this, "VpcCidr", {
       value: this.vpc.vpcCidrBlock,
-      description: 'VPC CIDR Block',
+      description: "VPC CIDR Block",
+    });
+
+    // プライベートサブネットIDのエクスポート（DatabaseStackで使用）
+    new CfnOutput(this, "PrivateSubnetId1", {
+      value: this.vpc.isolatedSubnets[0].subnetId,
+      description: "Private Subnet ID (AZ-1)",
+      exportName: `${config.envName}-PrivateSubnetId1`,
+    });
+
+    new CfnOutput(this, "PrivateSubnetId2", {
+      value: this.vpc.isolatedSubnets[1].subnetId,
+      description: "Private Subnet ID (AZ-2)",
+      exportName: `${config.envName}-PrivateSubnetId2`,
     });
   }
 
   private createVpcEndpoints() {
     // Gateway型エンドポイント（S3）- 無料
-    this.vpc.addGatewayEndpoint('S3Endpoint', {
+    this.vpc.addGatewayEndpoint("S3Endpoint", {
       service: GatewayVpcEndpointAwsService.S3,
       subnets: [{ subnetType: SubnetType.PRIVATE_ISOLATED }],
     });
 
     // Interface型エンドポイント用のセキュリティグループ
-    const vpcEndpointSg = new SecurityGroup(this, 'VpcEndpointSg', {
+    const vpcEndpointSg = new SecurityGroup(this, "VpcEndpointSg", {
       vpc: this.vpc,
-      description: 'Security group for VPC endpoints',
+      description: "Security group for VPC endpoints",
       allowAllOutbound: true,
     });
 
@@ -114,11 +141,11 @@ export class NetworkStack extends Stack {
     vpcEndpointSg.addIngressRule(
       Peer.ipv4(this.vpc.vpcCidrBlock),
       Port.tcp(443),
-      'Allow HTTPS from VPC'
+      "Allow HTTPS from VPC",
     );
 
     // ECR API エンドポイント
-    this.vpc.addInterfaceEndpoint('EcrApiEndpoint', {
+    this.vpc.addInterfaceEndpoint("EcrApiEndpoint", {
       service: InterfaceVpcEndpointAwsService.ECR,
       subnets: { subnetType: SubnetType.PRIVATE_ISOLATED },
       securityGroups: [vpcEndpointSg],
@@ -126,7 +153,7 @@ export class NetworkStack extends Stack {
     });
 
     // ECR DKR エンドポイント
-    this.vpc.addInterfaceEndpoint('EcrDkrEndpoint', {
+    this.vpc.addInterfaceEndpoint("EcrDkrEndpoint", {
       service: InterfaceVpcEndpointAwsService.ECR_DOCKER,
       subnets: { subnetType: SubnetType.PRIVATE_ISOLATED },
       securityGroups: [vpcEndpointSg],
@@ -134,7 +161,7 @@ export class NetworkStack extends Stack {
     });
 
     // Secrets Manager エンドポイント
-    this.vpc.addInterfaceEndpoint('SecretsManagerEndpoint', {
+    this.vpc.addInterfaceEndpoint("SecretsManagerEndpoint", {
       service: InterfaceVpcEndpointAwsService.SECRETS_MANAGER,
       subnets: { subnetType: SubnetType.PRIVATE_ISOLATED },
       securityGroups: [vpcEndpointSg],
@@ -142,7 +169,7 @@ export class NetworkStack extends Stack {
     });
 
     // CloudWatch Logs エンドポイント
-    this.vpc.addInterfaceEndpoint('CloudWatchLogsEndpoint', {
+    this.vpc.addInterfaceEndpoint("CloudWatchLogsEndpoint", {
       service: InterfaceVpcEndpointAwsService.CLOUDWATCH_LOGS,
       subnets: { subnetType: SubnetType.PRIVATE_ISOLATED },
       securityGroups: [vpcEndpointSg],

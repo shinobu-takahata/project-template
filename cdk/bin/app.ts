@@ -32,12 +32,8 @@ const securityStack = new SecurityStack(app, `SecurityStack-${envName}`, {
 // DatabaseStackの作成
 const databaseStack = new DatabaseStack(app, `DatabaseStack-${envName}`, {
   env,
-  config,
-  vpc: networkStack.vpc
+  config
 });
-
-// 依存関係の設定
-databaseStack.addDependency(networkStack);
 
 // CDKアプリケーションの合成
 app.synth();
