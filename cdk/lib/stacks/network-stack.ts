@@ -109,6 +109,19 @@ export class NetworkStack extends Stack {
       description: "VPC CIDR Block",
     });
 
+    // パブリックサブネットIDのエクスポート（ComputeStackのALBで使用）
+    new CfnOutput(this, "PublicSubnetId1", {
+      value: this.vpc.publicSubnets[0].subnetId,
+      description: "Public Subnet ID (AZ-1)",
+      exportName: `${config.envName}-PublicSubnetId1`,
+    });
+
+    new CfnOutput(this, "PublicSubnetId2", {
+      value: this.vpc.publicSubnets[1].subnetId,
+      description: "Public Subnet ID (AZ-2)",
+      exportName: `${config.envName}-PublicSubnetId2`,
+    });
+
     // プライベートサブネットIDのエクスポート（DatabaseStackで使用）
     new CfnOutput(this, "PrivateSubnetId1", {
       value: this.vpc.isolatedSubnets[0].subnetId,
