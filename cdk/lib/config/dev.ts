@@ -15,8 +15,8 @@ export const devConfig: EnvConfig = {
   ecs: {
     cpu: 512,           // 0.5 vCPU
     memory: 1024,       // 1 GB
-    desiredCount: 2,    // マルチAZ構成
-    minCapacity: 2,
+    desiredCount: 0,    // TODO: イメージプッシュ後に2に変更
+    minCapacity: 0,     // TODO: イメージプッシュ後に2に変更
     maxCapacity: 10
   },
 

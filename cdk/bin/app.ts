@@ -3,6 +3,7 @@ import * as cdk from 'aws-cdk-lib';
 import { NetworkStack } from '../lib/stacks/network-stack';
 import { SecurityStack } from '../lib/stacks/security-stack';
 import { DatabaseStack } from '../lib/stacks/database-stack';
+import { ComputeStack } from '../lib/stacks/compute-stack';
 import { getEnvConfig } from '../lib/config/env-config';
 
 const app = new cdk.App();
@@ -34,6 +35,17 @@ const databaseStack = new DatabaseStack(app, `DatabaseStack-${envName}`, {
   env,
   config
 });
+
+// ComputeStackの作成
+const computeStack = new ComputeStack(app, `ComputeStack-${envName}`, {
+  env,
+  config
+});
+
+// 依存関係を設定
+computeStack.addDependency(networkStack);
+computeStack.addDependency(securityStack);
+computeStack.addDependency(databaseStack);
 
 // CDKアプリケーションの合成
 app.synth();

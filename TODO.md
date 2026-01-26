@@ -21,3 +21,4 @@ TODO
 
 - claude
   - cdkのコードを直接実行しようとする癖があるので、コンテナの中で実行させる
+  - implements_hogeを参照しないので、参照するようskills化する
