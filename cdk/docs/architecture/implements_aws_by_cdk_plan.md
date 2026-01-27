@@ -599,57 +599,194 @@ const cluster = new ecs.Cluster(this, 'Cluster', {
 
 **依存関係**: 4.1（Aurora）、5.1（ECR）、5.2（ALB）、5.3（ECS Cluster）
 
-**Fluent Bit設定例**:
+**Fluent Bit設定の実装方法**:
+
+Fluent BitでERRORレベル以上をCloudWatch Logs、全ログをS3に送信するには、カスタムFluent BitイメージをECRに配置する方法を採用します。
+
+**実装手順**:
+
+1. **Fluent Bit設定ファイルの作成**
+   - `fluent-bit.conf`: メイン設定ファイル
+   - `parsers.conf`: ログパーサー定義
+   - ファイル配置場所: `cdk/docker/fluent-bit/`
+
+2. **カスタムDockerイメージの作成**
+   - ベースイメージ: `public.ecr.aws/aws-observability/aws-for-fluent-bit:latest`
+   - 設定ファイルをイメージに含める
+   - ECRにプッシュ
+
+3. **CDKでの参照**
+   - カスタムイメージをECRから参照
+   - 環境変数でログバケット名を動的に設定
+
+**採用理由**: 設定のバージョン管理が容易、デプロイが確実、外部依存が不要
+
+**Fluent Bit設定ファイル例**:
+
+`cdk/docker/fluent-bit/fluent-bit.conf`:
 ```conf
+[SERVICE]
+    Flush        5
+    Log_Level    info
+    Parsers_File parsers.conf
+
+[INPUT]
+    Name        forward
+    Listen      0.0.0.0
+    Port        24224
+
 [FILTER]
-    Name    grep
-    Match   app-firelogs-*
-    Regex   level (ERROR|CRITICAL|FATAL)
+    Name        parser
+    Match       *
+    Key_Name    log
+    Parser      json
+    Reserve_Data On
 
+# ERRORレベル以上をCloudWatch Logsへ
 [OUTPUT]
-    Name    cloudwatch_logs
-    Match   app-firelogs-*
-    region  ap-northeast-1
-    log_group_name  /ecs/backend/errors
-    log_stream_prefix  fargate-
+    Name        cloudwatch_logs
+    Match       *
+    region      ${AWS_REGION}
+    log_group_name    /ecs/backend/errors
+    log_stream_prefix fargate-
+    auto_create_group true
+    log_key     log
+    # ERRORレベル以上のみフィルタ
+    Grep        level ERROR,CRITICAL,FATAL
 
+# 全ログをS3へ
 [OUTPUT]
-    Name    s3
-    Match   app-firelogs-*
-    region  ap-northeast-1
-    bucket  ${LOG_BUCKET_NAME}
+    Name        s3
+    Match       *
+    region      ${AWS_REGION}
+    bucket      ${LOG_BUCKET_NAME}
     total_file_size  100M
-    upload_timeout  10m
-    s3_key_format  /year=%Y/month=%m/day=%d/hour=%H/$UUID.gz
-    compression  gzip
+    upload_timeout   10m
+    s3_key_format    /logs/year=%Y/month=%m/day=%d/hour=%H/%H%M%S-$UUID.gz
+    compression      gzip
+    store_dir        /tmp/fluent-bit/s3
 ```
 
-**参考CDKリソース**:
+`cdk/docker/fluent-bit/parsers.conf`:
+```conf
+[PARSER]
+    Name        json
+    Format      json
+    Time_Key    time
+    Time_Format %Y-%m-%dT%H:%M:%S.%L
+    Time_Keep   On
+```
+
+`cdk/docker/fluent-bit/Dockerfile`:
+```dockerfile
+FROM public.ecr.aws/aws-observability/aws-for-fluent-bit:latest
+
+# 設定ファイルをコピー
+COPY fluent-bit.conf /fluent-bit/etc/fluent-bit.conf
+COPY parsers.conf /fluent-bit/etc/parsers.conf
+
+# ヘルスチェック
+HEALTHCHECK --interval=30s --timeout=3s \
+  CMD curl -f http://localhost:2020/api/v1/health || exit 1
+```
+
+**カスタムイメージのビルドとプッシュ**:
+```bash
+# ECRリポジトリの作成（CDKで実施済みの場合はスキップ）
+aws ecr create-repository --repository-name fluent-bit-custom
+
+# イメージのビルド
+cd cdk/docker/fluent-bit
+docker build -t fluent-bit-custom:latest .
+
+# ECRへのログイン
+aws ecr get-login-password --region ap-northeast-1 | \
+  docker login --username AWS --password-stdin <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com
+
+# タグ付けとプッシュ
+docker tag fluent-bit-custom:latest <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/fluent-bit-custom:latest
+docker push <account-id>.dkr.ecr.ap-northeast-1.amazonaws.com/fluent-bit-custom:latest
+```
+
+**参考CDKリソース（カスタムFluent BitイメージをECRから参照）**:
 ```typescript
 import * as ecs from 'aws-cdk-lib/aws-ecs';
+import * as ecr from 'aws-cdk-lib/aws-ecr';
+import * as logs from 'aws-cdk-lib/aws-logs';
+import * as iam from 'aws-cdk-lib/aws-iam';
 
+// Fluent Bit用ECRリポジトリ
+const fluentBitRepository = new ecr.Repository(this, 'FluentBitRepository', {
+  repositoryName: 'fluent-bit-custom',
+  imageScanOnPush: true,
+  lifecycleRules: [
+    {
+      maxImageCount: 5,
+      description: 'Keep last 5 images'
+    }
+  ]
+});
+
+// タスク定義
 const taskDefinition = new ecs.FargateTaskDefinition(this, 'TaskDef', {
   cpu: 512,
   memoryLimitMiB: 1024
 });
 
+// ログバケット名を環境変数として設定
+const logBucketName = logBucket.bucketName;
+const awsRegion = cdk.Stack.of(this).region;
+
+// アプリケーションコンテナ
 const appContainer = taskDefinition.addContainer('app', {
   image: ecs.ContainerImage.fromEcrRepository(repository),
   logging: ecs.LogDrivers.firelens({
     options: {
       Name: 'forward',
       Host: 'log-router',
-      Port: '24224'
+      Port: '24224',
+      'Retry_Limit': '2'
     }
-  })
+  }),
+  portMappings: [{
+    containerPort: 8000,
+    protocol: ecs.Protocol.TCP
+  }]
 });
 
+// Fluent Bitログルーター（カスタムイメージ）
 const logRouter = taskDefinition.addFirelensLogRouter('log-router', {
-  image: ecs.ContainerImage.fromRegistry('amazon/aws-for-fluent-bit:latest'),
+  image: ecs.ContainerImage.fromEcrRepository(fluentBitRepository, 'latest'),
   firelensConfig: {
-    type: ecs.FirelensLogRouterType.FLUENTBIT
-  }
+    type: ecs.FirelensLogRouterType.FLUENTBIT,
+  },
+  logging: new ecs.AwsLogDriver({
+    streamPrefix: 'firelens',
+    logGroup: new logs.LogGroup(this, 'FirelensLogGroup', {
+      logGroupName: '/ecs/firelens',
+      retention: logs.RetentionDays.ONE_WEEK
+    })
+  }),
+  environment: {
+    AWS_REGION: awsRegion,
+    LOG_BUCKET_NAME: logBucketName
+  },
+  memoryReservationMiB: 50
 });
+
+// ログバケットへの書き込み権限をタスクロールに付与
+logBucket.grantWrite(taskDefinition.taskRole);
+
+// CloudWatch Logsへの書き込み権限
+taskDefinition.taskRole.addToPrincipalPolicy(new iam.PolicyStatement({
+  effect: iam.Effect.ALLOW,
+  actions: [
+    'logs:CreateLogGroup',
+    'logs:CreateLogStream',
+    'logs:PutLogEvents'
+  ],
+  resources: ['arn:aws:logs:*:*:log-group:/ecs/backend/errors:*']
+}));
 ```
 
 ---

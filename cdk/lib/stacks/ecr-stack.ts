@@ -9,6 +9,7 @@ export interface EcrStackProps extends cdk.StackProps {
 
 export class EcrStack extends cdk.Stack {
   public readonly repository: ecr.Repository;
+  public readonly fluentBitRepository: ecr.Repository;
 
   constructor(scope: Construct, id: string, props: EcrStackProps) {
     super(scope, id, props);
@@ -64,6 +65,57 @@ export class EcrStack extends cdk.Stack {
       value: this.repository.repositoryName,
       description: 'ECR Repository Name',
       exportName: `${config.envName}-EcrRepositoryName`,
+    });
+
+    // Fluent Bit ECR Repository
+    this.fluentBitRepository = new ecr.Repository(this, 'FluentBitRepository', {
+      repositoryName: `fluent-bit-custom-${config.envName}`,
+
+      // イメージスキャン設定（脆弱性検出）
+      imageScanOnPush: true,
+
+      // タグの変更可否（CI/CDで上書き可能にするためMUTABLE）
+      imageTagMutability: ecr.TagMutability.MUTABLE,
+
+      // ライフサイクルポリシー（最新5イメージのみ保持）
+      lifecycleRules: [
+        {
+          rulePriority: 1,
+          description: 'Keep last 5 images',
+          maxImageCount: 5,
+        },
+      ],
+
+      // 暗号化設定（AES256）
+      encryption: ecr.RepositoryEncryption.AES_256,
+
+      // 削除ポリシー（環境別設定）
+      removalPolicy:
+        config.removalPolicy.ecrRepositories === 'DESTROY'
+          ? cdk.RemovalPolicy.DESTROY
+          : cdk.RemovalPolicy.RETAIN,
+
+      // スタック削除時にイメージを削除（開発環境のみ）
+      emptyOnDelete: config.removalPolicy.ecrRepositories === 'DESTROY',
+    });
+
+    // CloudFormation Outputs（スタック間連携用）
+    new cdk.CfnOutput(this, 'FluentBitRepositoryUri', {
+      value: this.fluentBitRepository.repositoryUri,
+      description: 'Fluent Bit ECR Repository URI',
+      exportName: `${config.envName}-FluentBitRepositoryUri`,
+    });
+
+    new cdk.CfnOutput(this, 'FluentBitRepositoryArn', {
+      value: this.fluentBitRepository.repositoryArn,
+      description: 'Fluent Bit ECR Repository ARN',
+      exportName: `${config.envName}-FluentBitRepositoryArn`,
+    });
+
+    new cdk.CfnOutput(this, 'FluentBitRepositoryName', {
+      value: this.fluentBitRepository.repositoryName,
+      description: 'Fluent Bit ECR Repository Name',
+      exportName: `${config.envName}-FluentBitRepositoryName`,
     });
   }
 }

@@ -49,17 +49,17 @@ export class ComputeStack extends Stack {
     });
 
     // Secrets Managerからデータベース認証情報を参照
-    const dbSecretArn = Fn.importValue(`${config.envName}-DbSecretArn`);
-    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
-      this,
-      "DbSecret",
-      dbSecretArn
-    );
+    // const dbSecretArn = Fn.importValue(`${config.envName}-DbSecretArn`);
+    // const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+    //   this,
+    //   "DbSecret",
+    //   dbSecretArn
+    // );
 
     // データベースエンドポイントのインポート
-    const dbClusterEndpoint = Fn.importValue(
-      `${config.envName}-DbClusterEndpoint`
-    );
+    // const dbClusterEndpoint = Fn.importValue(
+    //   `${config.envName}-DbClusterEndpoint`
+    // );
 
     // WebAcl ARNのインポート（SecurityStackから）
     // const webAclArn = Fn.importValue(`${config.envName}-WebAclArn`);
@@ -72,6 +72,14 @@ export class ComputeStack extends Stack {
     );
     const ecrRepositoryArn = Fn.importValue(
       `${config.envName}-EcrRepositoryArn`,
+    );
+
+    // Fluent Bit ECRリポジトリのインポート
+    const fluentBitRepositoryUri = Fn.importValue(
+      `${config.envName}-FluentBitRepositoryUri`,
+    );
+    const fluentBitRepositoryArn = Fn.importValue(
+      `${config.envName}-FluentBitRepositoryArn`,
     );
 
     // =========================================
@@ -126,10 +134,7 @@ export class ComputeStack extends Stack {
     // =========================================
     // 3. アプリケーションログ用S3バケット（Fluent Bit → S3）
     // =========================================
-    // 注意: 現在はawslogsドライバーを使用しているため、このS3バケットは使用していません
-    // 将来的にFluent Bitを有効化する際は、以下のコメントを解除してください
-    /*
-    const appLogBucket = new s3.Bucket(this, 'AppLogBucket', {
+    const appLogBucket = new s3.Bucket(this, "AppLogBucket", {
       bucketName: `app-logs-${config.envName}-${this.account}`,
       encryption: s3.BucketEncryption.S3_MANAGED,
       blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
@@ -139,22 +144,22 @@ export class ComputeStack extends Stack {
           transitions: [
             {
               storageClass: s3.StorageClass.GLACIER,
-              transitionAfter: Duration.days(90)
-            }
+              transitionAfter: Duration.days(90),
+            },
           ],
-          expiration: Duration.days(365)
-        }
+          expiration: Duration.days(365),
+        },
       ],
-      removalPolicy: config.removalPolicy.s3Buckets === 'DESTROY'
-        ? RemovalPolicy.DESTROY
-        : RemovalPolicy.RETAIN,
-      autoDeleteObjects: config.removalPolicy.s3Buckets === 'DESTROY'
+      removalPolicy:
+        config.removalPolicy.s3Buckets === "DESTROY"
+          ? RemovalPolicy.DESTROY
+          : RemovalPolicy.RETAIN,
+      autoDeleteObjects: config.removalPolicy.s3Buckets === "DESTROY",
     });
 
-    Tags.of(appLogBucket).add('Environment', config.envName);
-    Tags.of(appLogBucket).add('Project', 'project-template');
-    Tags.of(appLogBucket).add('ManagedBy', 'CDK');
-    */
+    Tags.of(appLogBucket).add("Environment", config.envName);
+    Tags.of(appLogBucket).add("Project", "project-template");
+    Tags.of(appLogBucket).add("ManagedBy", "CDK");
 
     // =========================================
     // 4. セキュリティグループ
@@ -282,6 +287,32 @@ export class ComputeStack extends Stack {
           : RemovalPolicy.RETAIN,
     });
 
+    // エラーログ専用ロググループ（Fluent Bit → CloudWatch Logs）
+    const errorLogGroup = new logs.LogGroup(this, "ErrorLogGroup", {
+      logGroupName: `/ecs/backend/errors`,
+      retention:
+        config.logRetentionDays === 7
+          ? logs.RetentionDays.ONE_WEEK
+          : logs.RetentionDays.ONE_MONTH,
+      removalPolicy:
+        config.removalPolicy.logGroups === "DESTROY"
+          ? RemovalPolicy.DESTROY
+          : RemovalPolicy.RETAIN,
+    });
+
+    // Fluent Bit自体のログ用ロググループ
+    const firelensLogGroup = new logs.LogGroup(this, "FirelensLogGroup", {
+      logGroupName: `/ecs/firelens`,
+      retention:
+        config.logRetentionDays === 7
+          ? logs.RetentionDays.ONE_WEEK
+          : logs.RetentionDays.ONE_MONTH,
+      removalPolicy:
+        config.removalPolicy.logGroups === "DESTROY"
+          ? RemovalPolicy.DESTROY
+          : RemovalPolicy.RETAIN,
+    });
+
     // =========================================
     // 8. IAMロール
     // =========================================
@@ -297,7 +328,7 @@ export class ComputeStack extends Stack {
       ],
     });
 
-    // ECRからのイメージプル権限（EcrStackのリポジトリ用）
+    // ECRからのイメージプル権限（Backend & Fluent Bit）
     executionRole.addToPolicy(
       new iam.PolicyStatement({
         effect: iam.Effect.ALLOW,
@@ -311,17 +342,30 @@ export class ComputeStack extends Stack {
       }),
     );
 
+    // Fluent Bit ECRリポジトリへのアクセス権限を明示的に追加
+    executionRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: [
+          "ecr:BatchCheckLayerAvailability",
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+        ],
+        resources: [fluentBitRepositoryArn],
+      }),
+    );
+
     // CloudWatch Logs書き込み権限
     appLogGroup.grantWrite(executionRole);
 
     // Secrets Manager読み取り権限
-    executionRole.addToPolicy(
-      new iam.PolicyStatement({
-        effect: iam.Effect.ALLOW,
-        actions: ["secretsmanager:GetSecretValue"],
-        resources: [dbSecretArn],
-      })
-    );
+    // executionRole.addToPolicy(
+    //   new iam.PolicyStatement({
+    //     effect: iam.Effect.ALLOW,
+    //     actions: ["secretsmanager:GetSecretValue"],
+    //     resources: [dbSecretArn],
+    //   })
+    // );
 
     // タスクロール
     const taskRole = new iam.Role(this, "TaskRole", {
@@ -329,14 +373,20 @@ export class ComputeStack extends Stack {
       assumedBy: new iam.ServicePrincipal("ecs-tasks.amazonaws.com"),
     });
 
-    // S3ログバケットへの書き込み権限（Fluent Bit有効時に使用）
-    // appLogBucket.grantWrite(taskRole);
+    // S3ログバケットへの書き込み権限（Fluent Bit使用）
+    appLogBucket.grantWrite(taskRole);
 
     // アプリケーション用S3バケットへのアクセス権限
     appBucket.grantReadWrite(taskRole);
 
-    // CloudWatch Logs書き込み権限
+    // CloudWatch Logs書き込み権限（バックアップ用に残す）
     appLogGroup.grantWrite(taskRole);
+
+    // エラーログ用CloudWatch Logs書き込み権限（Fluent Bit経由）
+    errorLogGroup.grantWrite(taskRole);
+
+    // Fluent Bit用CloudWatch Logs書き込み権限
+    firelensLogGroup.grantWrite(taskRole);
 
     // =========================================
     // 8.1 GitHub Actions用OIDC Provider & IAMロール
@@ -468,35 +518,39 @@ export class ComputeStack extends Stack {
     );
 
     // =========================================
-    // Fluent Bit サイドカー（FireLens）- 現在は無効化
+    // Fluent Bit サイドカー（FireLens）
     // =========================================
-    // 注意: PRIVATE_ISOLATEDサブネットからパブリックECRにアクセスできないため、
-    // 現在はawslogsドライバーを使用しています。
-    // Fluent Bitを有効化するには、以下のいずれかの対応が必要です：
-    // 1. Fluent BitイメージをプライベートECRにコピー
-    // 2. NATゲートウェイを追加（月額約$32のコスト増）
-    // 3. 別のログ収集方法を検討
-    /*
-    const logRouter = taskDefinition.addFirelensLogRouter('log-router', {
-      image: ecs.ContainerImage.fromRegistry('public.ecr.aws/aws-observability/aws-for-fluent-bit:stable'),
+    // カスタムFluent BitイメージをプライベートECRから取得
+    taskDefinition.addFirelensLogRouter("log-router", {
+      image: ecs.ContainerImage.fromRegistry(
+        `${fluentBitRepositoryUri}:latest`,
+      ),
       firelensConfig: {
         type: ecs.FirelensLogRouterType.FLUENTBIT,
         options: {
-          enableECSLogMetadata: true
-        }
+          configFileType: ecs.FirelensConfigFileType.FILE,
+          configFileValue: "/fluent-bit/custom/fluent-bit.conf",
+          enableECSLogMetadata: false,
+        },
       },
       logging: ecs.LogDrivers.awsLogs({
-        streamPrefix: 'firelens',
-        logGroup: appLogGroup
+        streamPrefix: "firelens",
+        logGroup: firelensLogGroup,
       }),
-      memoryReservationMiB: 50
+      environment: {
+        AWS_REGION: config.region,
+        LOG_BUCKET_NAME: appLogBucket.bucketName,
+      },
+      memoryReservationMiB: 50,
+      essential: true,
+      healthCheck: {
+        command: ["CMD", "curl", "-f", "http://localhost:2020/api/v1/health"],
+        interval: Duration.seconds(30),
+        timeout: Duration.seconds(5),
+        retries: 2,
+        startPeriod: Duration.seconds(60),
+      },
     });
-
-    logRouter.addPortMappings({
-      containerPort: 24224,
-      protocol: ecs.Protocol.TCP
-    });
-    */
 
     // メインコンテナ（FastAPI）
     taskDefinition.addContainer("app", {
@@ -520,33 +574,19 @@ export class ComputeStack extends Stack {
         S3_BUCKET: appBucket.bucketName,
         S3_REGION: config.region,
         // データベースエンドポイント（URLはアプリ側でシークレットと組み合わせて構築）
-        DATABASE_HOST: dbClusterEndpoint,
-        DATABASE_PORT: "5432",
-        DATABASE_NAME: "postgres",
+        // DATABASE_HOST: dbClusterEndpoint,
+        // DATABASE_PORT: "5432",
+        // DATABASE_NAME: "postgres",
       },
-      secrets: {
-        DATABASE_USER: ecs.Secret.fromSecretsManager(dbSecret, "username"),
-        DATABASE_PASSWORD: ecs.Secret.fromSecretsManager(dbSecret, "password"),
-      },
+      // secrets: {
+      //   DATABASE_USER: ecs.Secret.fromSecretsManager(dbSecret, "username"),
+      //   DATABASE_PASSWORD: ecs.Secret.fromSecretsManager(dbSecret, "password"),
+      // },
 
-      // CloudWatch Logsへの直接出力（awslogsドライバー）
-      logging: ecs.LogDrivers.awsLogs({
-        streamPrefix: "backend",
-        logGroup: appLogGroup,
-      }),
-
-      // Fluent Bit有効時のログ設定（現在は無効化）
-      /*
+      // FireLens経由でFluent Bitにログを送信
       logging: ecs.LogDrivers.firelens({
-        options: {
-          Name: 'cloudwatch',
-          region: config.region,
-          log_group_name: appLogGroup.logGroupName,
-          log_stream_prefix: 'app-',
-          auto_create_group: 'false'
-        }
+        options: {},
       }),
-      */
       healthCheck: {
         command: [
           "CMD-SHELL",
@@ -646,14 +686,11 @@ export class ComputeStack extends Stack {
       exportName: `${config.envName}-EcsSecurityGroupId`,
     });
 
-    // AppLogBucketはFluent Bit有効時に使用
-    /*
-    new CfnOutput(this, 'AppLogBucketName', {
+    new CfnOutput(this, "AppLogBucketName", {
       value: appLogBucket.bucketName,
-      description: 'Application Log Bucket Name',
-      exportName: `${config.envName}-AppLogBucketName`
+      description: "Application Log Bucket Name",
+      exportName: `${config.envName}-AppLogBucketName`,
     });
-    */
 
     new CfnOutput(this, "AppLogGroupName", {
       value: appLogGroup.logGroupName,
