@@ -413,6 +413,8 @@ export class ComputeStack extends Stack {
             "ecs:DescribeTaskDefinition",
             "ecs:DescribeServices",
             "ecs:UpdateService",
+            "ecs:RunTask",
+            "ecs:DescribeTasks",
           ],
           resources: ["*"], // タスク定義は事前にARNが分からないため
         }),

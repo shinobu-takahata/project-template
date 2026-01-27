@@ -75,10 +75,25 @@ jobs:
         run: |
           echo "Running database migration..."
 
+          # ECSサービスから現在のネットワーク設定を取得
+          NETWORK_CONFIG=$(aws ecs describe-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].networkConfiguration.awsvpcConfiguration' \
+            --output json)
+
+          SUBNETS=$(echo $NETWORK_CONFIG | jq -r '.subnets | join(",")')
+          SECURITY_GROUPS=$(echo $NETWORK_CONFIG | jq -r '.securityGroups | join(",")')
+
+          echo "Using subnets: $SUBNETS"
+          echo "Using security groups: $SECURITY_GROUPS"
+
           TASK_ARN=$(aws ecs run-task \
             --cluster ${{ env.ECS_CLUSTER }} \
             --task-definition backend-${{ env.ENVIRONMENT }} \
             --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUPS],assignPublicIp=DISABLED}" \
             --overrides '{
               "containerOverrides": [{
                 "name": "backend",
