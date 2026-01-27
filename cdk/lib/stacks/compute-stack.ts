@@ -49,12 +49,17 @@ export class ComputeStack extends Stack {
     });
 
     // Secrets Managerからデータベース認証情報を参照
-    // const dbSecretArn = Fn.importValue(`${config.envName}-DbSecretArn`);
-    // const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
-    //   this,
-    //   'DbSecret',
-    //   dbSecretArn
-    // );
+    const dbSecretArn = Fn.importValue(`${config.envName}-DbSecretArn`);
+    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      "DbSecret",
+      dbSecretArn
+    );
+
+    // データベースエンドポイントのインポート
+    const dbClusterEndpoint = Fn.importValue(
+      `${config.envName}-DbClusterEndpoint`
+    );
 
     // WebAcl ARNのインポート（SecurityStackから）
     // const webAclArn = Fn.importValue(`${config.envName}-WebAclArn`);
@@ -98,6 +103,25 @@ export class ComputeStack extends Stack {
     Tags.of(albLogBucket).add("Environment", config.envName);
     Tags.of(albLogBucket).add("Project", "project-template");
     Tags.of(albLogBucket).add("ManagedBy", "CDK");
+
+    // =========================================
+    // 2.1 アプリケーション用S3バケット
+    // =========================================
+    const appBucket = new s3.Bucket(this, "AppBucket", {
+      bucketName: `app-bucket-${config.envName}-${this.account}`,
+      encryption: s3.BucketEncryption.S3_MANAGED,
+      blockPublicAccess: s3.BlockPublicAccess.BLOCK_ALL,
+      versioned: true,
+      removalPolicy:
+        config.removalPolicy.s3Buckets === "DESTROY"
+          ? RemovalPolicy.DESTROY
+          : RemovalPolicy.RETAIN,
+      autoDeleteObjects: config.removalPolicy.s3Buckets === "DESTROY",
+    });
+
+    Tags.of(appBucket).add("Environment", config.envName);
+    Tags.of(appBucket).add("Project", "project-template");
+    Tags.of(appBucket).add("ManagedBy", "CDK");
 
     // =========================================
     // 3. アプリケーションログ用S3バケット（Fluent Bit → S3）
@@ -291,15 +315,13 @@ export class ComputeStack extends Stack {
     appLogGroup.grantWrite(executionRole);
 
     // Secrets Manager読み取り権限
-    // executionRole.addToPolicy(
-    //   new iam.PolicyStatement({
-    //     effect: iam.Effect.ALLOW,
-    //     actions: [
-    //       'secretsmanager:GetSecretValue'
-    //     ],
-    //     resources: [dbSecretArn]
-    //   })
-    // );
+    executionRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: [dbSecretArn],
+      })
+    );
 
     // タスクロール
     const taskRole = new iam.Role(this, "TaskRole", {
@@ -309,6 +331,9 @@ export class ComputeStack extends Stack {
 
     // S3ログバケットへの書き込み権限（Fluent Bit有効時に使用）
     // appLogBucket.grantWrite(taskRole);
+
+    // アプリケーション用S3バケットへのアクセス権限
+    appBucket.grantReadWrite(taskRole);
 
     // CloudWatch Logs書き込み権限
     appLogGroup.grantWrite(taskRole);
@@ -486,15 +511,21 @@ export class ComputeStack extends Stack {
       environment: {
         ENV: config.envName,
         LOG_LEVEL: config.envName === "prod" ? "INFO" : "DEBUG",
-        // APP_LOG_BUCKET: appLogBucket.bucketName  // Fluent Bit有効時に使用
+        // SMTP設定（Amazon SES SMTP Interface）
+        SMTP_HOST: `email-smtp.${config.region}.amazonaws.com`,
+        SMTP_PORT: "587",
+        // S3設定（IAMロールで認証するためアクセスキーは不要）
+        S3_BUCKET: appBucket.bucketName,
+        S3_REGION: config.region,
+        // データベースエンドポイント（URLはアプリ側でシークレットと組み合わせて構築）
+        DATABASE_HOST: dbClusterEndpoint,
+        DATABASE_PORT: "5432",
+        DATABASE_NAME: "postgres",
       },
-      // secrets: {
-      //   DATABASE_HOST: ecs.Secret.fromSecretsManager(dbSecret, 'host'),
-      //   DATABASE_PORT: ecs.Secret.fromSecretsManager(dbSecret, 'port'),
-      //   DATABASE_NAME: ecs.Secret.fromSecretsManager(dbSecret, 'dbname'),
-      //   DATABASE_USER: ecs.Secret.fromSecretsManager(dbSecret, 'username'),
-      //   DATABASE_PASSWORD: ecs.Secret.fromSecretsManager(dbSecret, 'password')
-      // },
+      secrets: {
+        DATABASE_USER: ecs.Secret.fromSecretsManager(dbSecret, "username"),
+        DATABASE_PASSWORD: ecs.Secret.fromSecretsManager(dbSecret, "password"),
+      },
 
       // CloudWatch Logsへの直接出力（awslogsドライバー）
       logging: ecs.LogDrivers.awsLogs({
@@ -626,6 +657,12 @@ export class ComputeStack extends Stack {
       value: appLogGroup.logGroupName,
       description: "Application Log Group Name",
       exportName: `${config.envName}-AppLogGroupName`,
+    });
+
+    new CfnOutput(this, "AppBucketName", {
+      value: appBucket.bucketName,
+      description: "Application S3 Bucket Name",
+      exportName: `${config.envName}-AppBucketName`,
     });
   }
 }
