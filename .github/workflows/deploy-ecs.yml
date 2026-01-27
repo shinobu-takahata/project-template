@@ -30,13 +30,13 @@ jobs:
         run: |
           if [ "${{ env.ENVIRONMENT }}" = "prod" ]; then
             echo "ECR_REPOSITORY=backend-prod" >> $GITHUB_ENV
-            echo "ECS_CLUSTER=backend-cluster-prod" >> $GITHUB_ENV
+            echo "ECS_CLUSTER=cluster-prod" >> $GITHUB_ENV
             echo "ECS_SERVICE=backend-service-prod" >> $GITHUB_ENV
             echo "CONTAINER_NAME=backend" >> $GITHUB_ENV
             echo "AWS_ROLE_ARN=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role-prod" >> $GITHUB_ENV
           else
             echo "ECR_REPOSITORY=backend-dev" >> $GITHUB_ENV
-            echo "ECS_CLUSTER=backend-cluster-dev" >> $GITHUB_ENV
+            echo "ECS_CLUSTER=cluster-dev" >> $GITHUB_ENV
             echo "ECS_SERVICE=backend-service-dev" >> $GITHUB_ENV
             echo "CONTAINER_NAME=backend" >> $GITHUB_ENV
             echo "AWS_ROLE_ARN=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role-dev" >> $GITHUB_ENV
