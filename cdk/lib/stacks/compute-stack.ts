@@ -543,13 +543,13 @@ export class ComputeStack extends Stack {
       },
       memoryReservationMiB: 50,
       essential: true,
-      healthCheck: {
-        command: ["CMD", "curl", "-f", "http://localhost:2020/api/v1/health"],
-        interval: Duration.seconds(30),
-        timeout: Duration.seconds(5),
-        retries: 2,
-        startPeriod: Duration.seconds(60),
-      },
+      // healthCheck: {
+      //   command: ["CMD", "curl", "-f", "http://localhost:2020/api/v1/health"],
+      //   interval: Duration.seconds(30),
+      //   timeout: Duration.seconds(5),
+      //   retries: 2,
+      //   startPeriod: Duration.seconds(60),
+      // },
     });
 
     // メインコンテナ（FastAPI）
