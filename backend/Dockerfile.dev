@@ -17,9 +17,10 @@ RUN uv sync
 # /appディレクトリの所有権を変更
 RUN chown -R appuser:appuser /app
 
+# アプリケーションコードをコピー
+COPY --chown=appuser:appuser app /app/app
+
 # 非rootユーザーに切り替え
 USER appuser
 
-# アプリケーションコードはvolume経由でマウント
-
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

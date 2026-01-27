@@ -37,6 +37,14 @@ export const prodConfig: EnvConfig = {
   removalPolicy: {
     s3Buckets: 'RETAIN',     // S3バケットは保持
     logGroups: 'RETAIN',      // ロググループは保持
-    database: 'SNAPSHOT'      // 削除前にスナップショット作成
+    database: 'SNAPSHOT',     // 削除前にスナップショット作成
+    ecrRepositories: 'RETAIN' // ECRリポジトリは保持
+  },
+
+  // GitHub Actions CI/CD設定
+  github: {
+    owner: 'your-organization',      // TODO: 実際のGitHub組織名またはユーザー名に変更
+    repository: 'your-repository',   // TODO: 実際のリポジトリ名に変更
+    branches: ['main']               // 本番環境はmainブランチのみからのデプロイを許可
   }
 };

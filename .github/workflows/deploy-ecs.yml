@@ -1,0 +1,139 @@
+name: Deploy to Amazon ECS
+
+on:
+  push:
+    branches:
+      - main
+      - develop
+  workflow_dispatch:  # 手動実行を許可
+
+env:
+  AWS_REGION: ap-northeast-1
+  ENVIRONMENT: ${{ github.ref == 'refs/heads/main' && 'prod' || 'dev' }}
+
+# GitHub Actions OIDC経由でAWSにアクセスするための権限
+permissions:
+  id-token: write
+  contents: read
+
+jobs:
+  deploy:
+    name: Deploy to ECS
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set environment variables
+        id: set-env
+        run: |
+          if [ "${{ env.ENVIRONMENT }}" = "prod" ]; then
+            echo "ECR_REPOSITORY=backend-prod" >> $GITHUB_ENV
+            echo "ECS_CLUSTER=backend-cluster-prod" >> $GITHUB_ENV
+            echo "ECS_SERVICE=backend-service-prod" >> $GITHUB_ENV
+            echo "CONTAINER_NAME=backend" >> $GITHUB_ENV
+            echo "AWS_ROLE_ARN=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role-prod" >> $GITHUB_ENV
+          else
+            echo "ECR_REPOSITORY=backend-dev" >> $GITHUB_ENV
+            echo "ECS_CLUSTER=backend-cluster-dev" >> $GITHUB_ENV
+            echo "ECS_SERVICE=backend-service-dev" >> $GITHUB_ENV
+            echo "CONTAINER_NAME=backend" >> $GITHUB_ENV
+            echo "AWS_ROLE_ARN=arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role-dev" >> $GITHUB_ENV
+          fi
+
+      - name: Configure AWS credentials using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ env.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+          role-session-name: GitHubActions-${{ github.run_id }}
+
+      - name: Login to Amazon ECR
+        id: login-ecr
+        uses: aws-actions/amazon-ecr-login@v2
+
+      - name: Build, tag, and push image to Amazon ECR
+        id: build-image
+        env:
+          ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+          IMAGE_TAG: ${{ github.sha }}
+        run: |
+          # Dockerイメージをビルド（AMD64/x86_64向け - ECS Fargateで実行するため）
+          docker build --platform linux/amd64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f backend/Dockerfile.dev backend/
+          
+          # latestタグも追加
+          docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          # ECRにプッシュ
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+          docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+          
+          echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+      - name: Download current task definition
+        id: get-task-def
+        run: |
+          # タスク定義が存在するか確認
+          if aws ecs describe-task-definition \
+            --task-definition backend-${{ env.ENVIRONMENT }} \
+            --query taskDefinition \
+            --output json > task-definition.json 2>/dev/null; then
+            
+            echo "task_def_exists=true" >> $GITHUB_OUTPUT
+            
+            # 不要なフィールドを削除（CDKで管理されているため）
+            cat task-definition.json | jq 'del(
+              .taskDefinitionArn,
+              .revision,
+              .status,
+              .requiresAttributes,
+              .compatibilities,
+              .registeredAt,
+              .registeredBy
+            )' > task-definition-clean.json
+            
+            mv task-definition-clean.json task-definition.json
+          else
+            echo "task_def_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Task definition does not exist. Will create new one."
+          fi
+
+      - name: Fill in the new image ID in the Amazon ECS task definition
+        id: task-def
+        if: steps.get-task-def.outputs.task_def_exists == 'true'
+        uses: aws-actions/amazon-ecs-render-task-definition@v1
+        with:
+          task-definition: task-definition.json
+          container-name: ${{ env.CONTAINER_NAME }}
+          image: ${{ steps.build-image.outputs.image }}
+
+      - name: Deploy Amazon ECS task definition
+        if: steps.get-task-def.outputs.task_def_exists == 'true'
+        uses: aws-actions/amazon-ecs-deploy-task-definition@v1
+        with:
+          task-definition: ${{ steps.task-def.outputs.task-definition }}
+          service: ${{ env.ECS_SERVICE }}
+          cluster: ${{ env.ECS_CLUSTER }}
+          wait-for-service-stability: true
+          wait-for-minutes: 10
+
+      - name: Force ECS service update (for initial deployment)
+        if: steps.get-task-def.outputs.task_def_exists == 'false'
+        run: |
+          echo "⚠️ Initial deployment detected. ECS service will pick up the new image on next deployment."
+          echo "Please update desiredCount in CDK config and redeploy the stack to start the service."
+
+      - name: Deployment success notification
+        if: success()
+        run: |
+          echo "✅ Deployment to ${{ env.ENVIRONMENT }} environment successful!"
+          echo "Image: ${{ steps.build-image.outputs.image }}"
+          echo "Service: ${{ env.ECS_SERVICE }}"
+          echo "Cluster: ${{ env.ECS_CLUSTER }}"
+
+      - name: Deployment failure notification
+        if: failure()
+        run: |
+          echo "❌ Deployment to ${{ env.ENVIRONMENT }} environment failed!"
+          exit 1

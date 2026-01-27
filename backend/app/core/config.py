@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     API_V1_STR: str = "/api/v1"
 
     # Database
-    DATABASE_URL: str
+    DATABASE_URL: str = "postgresql://localhost/test"  # デフォルト値（未使用時）
 
     # SMTP (MailHog)
     SMTP_HOST: str = "mailhog"

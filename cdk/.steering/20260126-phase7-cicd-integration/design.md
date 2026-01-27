@@ -1,7 +1,8 @@
 # フェーズ7: CI/CD統合 - 設計書
 
 ## 概要
-GitHub ActionsからのECSデプロイを可能にするOIDC認証基盤を実装します。
+GitHub ActionsからのECRプッシュとECSデプロイを可能にするOIDC認証基盤を実装します。
+ECRリポジトリはEcrStack（Phase 4.5）で管理されているため、そこから参照します。
 
 ## 実装アプローチ
 
@@ -54,7 +55,13 @@ github: {
 ### 4. ComputeStack への追加
 **ファイル**: `lib/stacks/compute-stack.ts`
 
-#### 4.1 OIDC Provider
+#### 4.1 ECRリポジトリARNのインポート
+```typescript
+// EcrStackからECRリポジトリARNをインポート
+const ecrRepositoryArn = cdk.Fn.importValue(`${config.envName}-EcrRepositoryArn`);
+```
+
+#### 4.2 OIDC Provider
 ```typescript
 // GitHub Actions OIDC Provider
 const githubProvider = new iam.OpenIdConnectProvider(this, 'GithubOidcProvider', {
@@ -66,7 +73,7 @@ const githubProvider = new iam.OpenIdConnectProvider(this, 'GithubOidcProvider',
 
 **注意**: OIDC Providerはアカウントに1つのみ存在可能。既存の場合は `fromOpenIdConnectProviderArn` でインポート。
 
-#### 4.2 IAM Role
+#### 4.3 IAM Role
 ```typescript
 const githubActionsRole = new iam.Role(this, 'GithubActionsRole', {
   roleName: `github-actions-role-${config.envName}`,
@@ -88,8 +95,9 @@ const githubActionsRole = new iam.Role(this, 'GithubActionsRole', {
 });
 ```
 
-#### 4.3 IAM Policy（ECR）
+#### 4.4 IAM Policy（ECR）
 ```typescript
+// ECR認証トークン取得（アカウント全体）
 githubActionsRole.addToPolicy(new iam.PolicyStatement({
   effect: iam.Effect.ALLOW,
   actions: [
@@ -98,6 +106,7 @@ githubActionsRole.addToPolicy(new iam.PolicyStatement({
   resources: ['*']
 }));
 
+// ECRリポジトリへのプッシュ権限（EcrStackから参照）
 githubActionsRole.addToPolicy(new iam.PolicyStatement({
   effect: iam.Effect.ALLOW,
   actions: [
@@ -109,11 +118,11 @@ githubActionsRole.addToPolicy(new iam.PolicyStatement({
     'ecr:UploadLayerPart',
     'ecr:CompleteLayerUpload'
   ],
-  resources: [this.ecrRepository.repositoryArn]
+  resources: [ecrRepositoryArn]  // EcrStackからインポート
 }));
 ```
 
-#### 4.4 IAM Policy（ECS）
+#### 4.5 IAM Policy（ECS）
 ```typescript
 githubActionsRole.addToPolicy(new iam.PolicyStatement({
   effect: iam.Effect.ALLOW,
@@ -142,7 +151,7 @@ githubActionsRole.addToPolicy(new iam.PolicyStatement({
 }));
 ```
 
-#### 4.5 CfnOutput
+#### 4.6 CfnOutput
 ```typescript
 new CfnOutput(this, 'GithubActionsRoleArn', {
   value: githubActionsRole.roleArn,
@@ -220,9 +229,8 @@ GitHub Actions
 | prod.ts | github設定の追加 |
 
 ### 依存関係
-- ECRリポジトリ（既存）→ IAMポリシーで参照
-- タスク実行ロール（既存）→ PassRoleで参照
-- タスクロール（既存）→ PassRoleで参照
+- EcrStack（Phase 4.5）→ ECRリポジトリARNをインポート
+- ComputeStack（Phase 5）→ タスク実行ロール、タスクロールをPassRoleで参照
 
 ## テスト方法
 

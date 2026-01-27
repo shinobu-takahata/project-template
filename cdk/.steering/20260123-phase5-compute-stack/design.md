@@ -1,7 +1,8 @@
 # フェーズ5: コンピューティング基盤 - 設計書
 
 ## 概要
-ComputeStackを作成し、ECR、ALB、ECSクラスター、ECS Fargateサービスを構築する。
+ComputeStackを作成し、ALB、ECSクラスター、ECS Fargateサービスを構築する。
+ECRリポジトリは別スタック（EcrStack）で管理され、本スタックから参照します。
 
 ## ファイル構成
 
@@ -11,8 +12,8 @@ lib/
 ├── stacks/
 │   └── compute-stack.ts          # メインのComputeStack
 ├── constructs/
-│   ├── ecs-fargate-service.ts    # ECS Fargate Service Construct
-│   └── alb-with-waf.ts           # ALB + WAF Construct
+│   ├── ecs-fargate-service.ts    # ECS Fargate Service Construct (オプション)
+│   └── alb-with-waf.ts           # ALB + WAF Construct (オプション)
 ```
 
 ### 変更ファイル
@@ -32,25 +33,17 @@ lib/
 - NetworkStackからVPC情報をFn.importValueで取得
 - SecurityStackからWebAcl ARNをFn.importValueで取得
 - DatabaseStackからSecrets Manager ARNをFn.importValueで取得
+- EcrStackからECRリポジトリURIをFn.importValueで取得
 
 #### 主要コンポーネント
 
-##### 1.1 ECRリポジトリ
+##### 1.1 ECRリポジトリURIのインポート
 ```typescript
-new ecr.Repository(this, 'BackendRepository', {
-  repositoryName: `backend-${config.envName}`,
-  imageScanOnPush: true,
-  imageTagMutability: ecr.TagMutability.MUTABLE,
-  lifecycleRules: [
-    {
-      maxImageCount: 10,
-      description: 'Keep last 10 images'
-    }
-  ],
-  encryption: ecr.RepositoryEncryption.AES_256,
-  removalPolicy: RemovalPolicy.RETAIN  // イメージを保護
-});
+// EcrStackからECRリポジトリURIをインポート
+const ecrRepositoryUri = cdk.Fn.importValue(`${config.envName}-EcrRepositoryUri`);
 ```
+
+**注意**: ECRリポジトリ自体はEcrStack（Phase 4.5）で管理されます。
 
 ##### 1.2 ALBアクセスログ用S3バケット
 ```typescript
@@ -149,7 +142,8 @@ new ecs.FargateTaskDefinition(this, 'TaskDef', {
 ##### 1.11 メインコンテナ（FastAPI）
 ```typescript
 taskDefinition.addContainer('app', {
-  image: ecs.ContainerImage.fromEcrRepository(repository),
+  // ECRリポジトリURIを使用（クロススタック参照のためfromRegistryを使用）
+  image: ecs.ContainerImage.fromRegistry(ecrRepositoryUri),
   portMappings: [{ containerPort: 8000 }],
   logging: ecs.LogDrivers.firelens({...}),
   secrets: {
@@ -160,6 +154,8 @@ taskDefinition.addContainer('app', {
   }
 });
 ```
+
+**注意**: クロススタック参照のため、`fromEcrRepository`ではなく`fromRegistry`でURIを直接指定します。
 
 ##### 1.12 Fluent Bitサイドカー
 ```typescript
@@ -213,12 +209,13 @@ scalableTarget.scaleOnCpuUtilization('CpuScaling', {
 - CloudWatch Logs書き込み権限（Fluent Bit用）
 
 ### 3. スタック出力 (CfnOutput)
-- ECRリポジトリURI: `${config.envName}-EcrRepositoryUri`
 - ALB DNS名: `${config.envName}-AlbDnsName`
 - ALB ARN: `${config.envName}-AlbArn`
 - ECSクラスター名: `${config.envName}-EcsClusterName`
 - ECSサービス名: `${config.envName}-EcsServiceName`
 - ECSセキュリティグループID: `${config.envName}-EcsSecurityGroupId`
+
+**注意**: ECRリポジトリURIはEcrStackから出力されます。
 
 ### 4. app.ts の変更
 ```typescript
@@ -234,7 +231,15 @@ const computeStack = new ComputeStack(app, `ComputeStack-${envName}`, {
 computeStack.addDependency(networkStack);
 computeStack.addDependency(securityStack);
 computeStack.addDependency(databaseStack);
+computeStack.addDependency(ecrStack);  // EcrStackへの依存を追加
 ```
+
+**デプロイ順序**:
+1. NetworkStack（依存なし）
+2. SecurityStack（依存なし）
+3. DatabaseStack（NetworkStackに依存）
+4. EcrStack（依存なし）
+5. ComputeStack（すべてのスタックに依存）
 
 ## セキュリティ考慮事項
 1. ECSタスクはプライベートサブネットに配置（インターネット直接アクセス不可）
@@ -245,6 +250,7 @@ computeStack.addDependency(databaseStack);
 6. 最小権限の原則に基づくIAMロール設計
 
 ## 注意事項
-- 初回デプロイ時、ECRにイメージがないためECSサービスは正常起動しない
+- **ECRリポジトリはEcrStack（Phase 4.5）で管理**: ComputeStackデプロイ前にEcrStackのデプロイとイメージプッシュが必要
+- EcrStackデプロイ後、ダミーイメージをECRにプッシュしてからComputeStackをデプロイする
 - VPCエンドポイント経由でECR、Secrets Manager、CloudWatch Logsにアクセス
 - HTTPS対応は証明書準備後に別途追加

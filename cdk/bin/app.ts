@@ -3,6 +3,7 @@ import * as cdk from 'aws-cdk-lib';
 import { NetworkStack } from '../lib/stacks/network-stack';
 import { SecurityStack } from '../lib/stacks/security-stack';
 import { DatabaseStack } from '../lib/stacks/database-stack';
+import { EcrStack } from '../lib/stacks/ecr-stack';
 import { ComputeStack } from '../lib/stacks/compute-stack';
 import { getEnvConfig } from '../lib/config/env-config';
 
@@ -25,13 +26,19 @@ const networkStack = new NetworkStack(app, `NetworkStack-${envName}`, {
 });
 
 // SecurityStackの作成
-const securityStack = new SecurityStack(app, `SecurityStack-${envName}`, {
-  env,
-  config
-});
+// const securityStack = new SecurityStack(app, `SecurityStack-${envName}`, {
+//   env,
+//   config
+// });
 
 // DatabaseStackの作成
-const databaseStack = new DatabaseStack(app, `DatabaseStack-${envName}`, {
+// const databaseStack = new DatabaseStack(app, `DatabaseStack-${envName}`, {
+//   env,
+//   config
+// });
+
+// EcrStackの作成（Phase 4.5）
+const ecrStack = new EcrStack(app, `EcrStack-${envName}`, {
   env,
   config
 });
@@ -44,8 +51,9 @@ const computeStack = new ComputeStack(app, `ComputeStack-${envName}`, {
 
 // 依存関係を設定
 computeStack.addDependency(networkStack);
-computeStack.addDependency(securityStack);
-computeStack.addDependency(databaseStack);
+computeStack.addDependency(ecrStack);
+// computeStack.addDependency(securityStack);
+// computeStack.addDependency(databaseStack);
 
 // CDKアプリケーションの合成
 app.synth();

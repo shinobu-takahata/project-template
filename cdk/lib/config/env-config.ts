@@ -40,6 +40,14 @@ export interface EnvConfig {
     s3Buckets: 'RETAIN' | 'DESTROY';
     logGroups: 'RETAIN' | 'DESTROY';
     database: 'RETAIN' | 'SNAPSHOT' | 'DESTROY';
+    ecrRepositories: 'RETAIN' | 'DESTROY';
+  };
+
+  // GitHub Actions CI/CD設定
+  github?: {
+    owner: string;           // GitHubオーナー（組織またはユーザー）
+    repository: string;      // リポジトリ名
+    branches: string[];      // 許可するブランチ（例: ['main', 'develop']）
   };
 }
 

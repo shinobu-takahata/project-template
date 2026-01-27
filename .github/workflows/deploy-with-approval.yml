@@ -1,0 +1,290 @@
+# name: Deploy with Approval
+
+# on:
+#   push:
+#     branches:
+#       - main
+#   workflow_dispatch:
+#     inputs:
+#       environment:
+#         description: 'Environment to deploy'
+#         required: true
+#         type: choice
+#         options:
+#           - dev
+#           - prod
+
+# env:
+#   AWS_REGION: ap-northeast-1
+
+# permissions:
+#   id-token: write
+#   contents: read
+
+# jobs:
+#   # ビルドとテスト
+#   build-and-test:
+#     name: Build and Test
+#     runs-on: ubuntu-latest
+#     outputs:
+#       image-tag: ${{ steps.meta.outputs.image-tag }}
+      
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Set up Python
+#         uses: actions/setup-python@v5
+#         with:
+#           python-version: '3.11'
+#           cache: 'pip'
+
+#       - name: Install dependencies
+#         run: |
+#           cd backend
+#           pip install -e ".[test]"
+
+#       - name: Run linting
+#         run: |
+#           cd backend
+#           ruff check .
+#           mypy app
+
+#       - name: Run tests
+#         run: |
+#           cd backend
+#           pytest tests/ -v --cov=app --cov-report=xml
+
+#       - name: Upload coverage reports
+#         uses: codecov/codecov-action@v4
+#         with:
+#           file: ./backend/coverage.xml
+#           flags: unittests
+#           name: codecov-umbrella
+#         continue-on-error: true
+
+#       - name: Generate image metadata
+#         id: meta
+#         run: |
+#           IMAGE_TAG="${{ github.sha }}"
+#           echo "image-tag=${IMAGE_TAG}" >> $GITHUB_OUTPUT
+
+#   # Dev環境へのデプロイ
+#   deploy-dev:
+#     name: Deploy to Dev
+#     runs-on: ubuntu-latest
+#     needs: build-and-test
+#     environment:
+#       name: dev
+#       url: https://dev-api.example.com
+    
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role-dev
+#           aws-region: ${{ env.AWS_REGION }}
+
+#       - name: Login to Amazon ECR
+#         id: login-ecr
+#         uses: aws-actions/amazon-ecr-login@v2
+
+#       - name: Build and push image
+#         env:
+#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#           ECR_REPOSITORY: backend-dev
+#           IMAGE_TAG: ${{ needs.build-and-test.outputs.image-tag }}
+#         run: |
+#           # AMD64/x86_64向けにビルド（ECS Fargateで実行するため）
+#           docker build --platform linux/amd64 -t $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG -f backend/Dockerfile.dev backend/
+#           docker tag $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG $ECR_REGISTRY/$ECR_REPOSITORY:latest
+#           docker push $ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG
+#           docker push $ECR_REGISTRY/$ECR_REPOSITORY:latest
+#           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
+
+#       - name: Deploy to ECS Dev
+#         run: |
+#           # タスク定義を取得
+#           aws ecs describe-task-definition \
+#             --task-definition backend-dev \
+#             --query taskDefinition > task-definition.json
+          
+#           # 不要なフィールドを削除
+#           jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+#             task-definition.json > task-def-clean.json
+          
+#           # 新しいイメージを設定
+#           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/backend-dev:${{ needs.build-and-test.outputs.image-tag }}"
+#           jq --arg IMAGE "$IMAGE_URI" \
+#             '(.containerDefinitions[] | select(.name == "backend") | .image) = $IMAGE' \
+#             task-def-clean.json > task-def-updated.json
+          
+#           # 新しいタスク定義を登録
+#           TASK_DEF_ARN=$(aws ecs register-task-definition \
+#             --cli-input-json file://task-def-updated.json \
+#             --query 'taskDefinition.taskDefinitionArn' \
+#             --output text)
+          
+#           echo "New task definition: $TASK_DEF_ARN"
+          
+#           # サービスを更新
+#           aws ecs update-service \
+#             --cluster backend-cluster-dev \
+#             --service backend-service-dev \
+#             --task-definition $TASK_DEF_ARN \
+#             --force-new-deployment
+          
+#           # デプロイの安定化を待つ
+#           echo "Waiting for service stability..."
+#           aws ecs wait services-stable \
+#             --cluster backend-cluster-dev \
+#             --services backend-service-dev
+
+#       - name: Run smoke tests
+#         run: |
+#           echo "Running smoke tests against dev environment..."
+#           # ここでAPIヘルスチェックなどを実行
+#           ENDPOINT="https://dev-api.example.com"
+          
+#           # ヘルスチェック
+#           for i in {1..10}; do
+#             if curl -f -s "${ENDPOINT}/health" > /dev/null; then
+#               echo "✅ Health check passed"
+#               exit 0
+#             fi
+#             echo "Waiting for service to be healthy (attempt $i/10)..."
+#             sleep 10
+#           done
+          
+#           echo "❌ Health check failed"
+#           exit 1
+
+#   # Prod環境へのデプロイ（承認必要）
+#   deploy-prod:
+#     name: Deploy to Production
+#     runs-on: ubuntu-latest
+#     needs: [build-and-test, deploy-dev]
+#     if: github.ref == 'refs/heads/main'
+#     environment:
+#       name: production
+#       url: https://api.example.com
+    
+#     steps:
+#       - name: Checkout code
+#         uses: actions/checkout@v4
+
+#       - name: Configure AWS credentials
+#         uses: aws-actions/configure-aws-credentials@v4
+#         with:
+#           role-to-assume: arn:aws:iam::${{ secrets.AWS_ACCOUNT_ID }}:role/github-actions-role-prod
+#           aws-region: ${{ env.AWS_REGION }}
+
+#       - name: Login to Amazon ECR
+#         id: login-ecr
+#         uses: aws-actions/amazon-ecr-login@v2
+
+#       - name: Copy image from dev to prod
+#         env:
+#           ECR_REGISTRY: ${{ steps.login-ecr.outputs.registry }}
+#           IMAGE_TAG: ${{ needs.build-and-test.outputs.image-tag }}
+#         run: |
+#           # Dev環境のイメージをPull
+#           docker pull $ECR_REGISTRY/backend-dev:$IMAGE_TAG
+          
+#           # Prod用にタグ付け
+#           docker tag $ECR_REGISTRY/backend-dev:$IMAGE_TAG $ECR_REGISTRY/backend-prod:$IMAGE_TAG
+#           docker tag $ECR_REGISTRY/backend-dev:$IMAGE_TAG $ECR_REGISTRY/backend-prod:latest
+          
+#           # Prod ECRにPush
+#           docker push $ECR_REGISTRY/backend-prod:$IMAGE_TAG
+#           docker push $ECR_REGISTRY/backend-prod:latest
+
+#       - name: Deploy to ECS Prod
+#         run: |
+#           # タスク定義を取得
+#           aws ecs describe-task-definition \
+#             --task-definition backend-prod \
+#             --query taskDefinition > task-definition.json
+          
+#           # 不要なフィールドを削除
+#           jq 'del(.taskDefinitionArn, .revision, .status, .requiresAttributes, .compatibilities, .registeredAt, .registeredBy)' \
+#             task-definition.json > task-def-clean.json
+          
+#           # 新しいイメージを設定
+#           IMAGE_URI="${{ steps.login-ecr.outputs.registry }}/backend-prod:${{ needs.build-and-test.outputs.image-tag }}"
+#           jq --arg IMAGE "$IMAGE_URI" \
+#             '(.containerDefinitions[] | select(.name == "backend") | .image) = $IMAGE' \
+#             task-def-clean.json > task-def-updated.json
+          
+#           # 新しいタスク定義を登録
+#           TASK_DEF_ARN=$(aws ecs register-task-definition \
+#             --cli-input-json file://task-def-updated.json \
+#             --query 'taskDefinition.taskDefinitionArn' \
+#             --output text)
+          
+#           echo "New task definition: $TASK_DEF_ARN"
+          
+#           # サービスを更新
+#           aws ecs update-service \
+#             --cluster backend-cluster-prod \
+#             --service backend-service-prod \
+#             --task-definition $TASK_DEF_ARN \
+#             --force-new-deployment
+          
+#           # デプロイの安定化を待つ
+#           echo "Waiting for service stability..."
+#           aws ecs wait services-stable \
+#             --cluster backend-cluster-prod \
+#             --services backend-service-prod
+
+#       - name: Run production smoke tests
+#         run: |
+#           echo "Running smoke tests against production environment..."
+#           ENDPOINT="https://api.example.com"
+          
+#           # ヘルスチェック
+#           for i in {1..10}; do
+#             if curl -f -s "${ENDPOINT}/health" > /dev/null; then
+#               echo "✅ Health check passed"
+#               exit 0
+#             fi
+#             echo "Waiting for service to be healthy (attempt $i/10)..."
+#             sleep 10
+#           done
+          
+#           echo "❌ Health check failed"
+#           exit 1
+
+#       - name: Create release tag
+#         if: success()
+#         run: |
+#           git config user.name "github-actions[bot]"
+#           git config user.email "github-actions[bot]@users.noreply.github.com"
+          
+#           TAG_NAME="release-$(date +%Y%m%d-%H%M%S)"
+#           git tag -a $TAG_NAME -m "Production release: ${{ needs.build-and-test.outputs.image-tag }}"
+#           git push origin $TAG_NAME
+
+#   # デプロイ通知
+#   notify:
+#     name: Notify Deployment Status
+#     runs-on: ubuntu-latest
+#     needs: [deploy-dev, deploy-prod]
+#     if: always()
+    
+#     steps:
+#       - name: Check deployment status
+#         run: |
+#           if [ "${{ needs.deploy-prod.result }}" == "success" ]; then
+#             echo "🚀 Production deployment successful!"
+#             echo "Image: ${{ needs.build-and-test.outputs.image-tag }}"
+#           elif [ "${{ needs.deploy-dev.result }}" == "success" ]; then
+#             echo "✅ Dev deployment successful!"
+#             echo "Image: ${{ needs.build-and-test.outputs.image-tag }}"
+#           else
+#             echo "❌ Deployment failed"
+#             exit 1
+#           fi
