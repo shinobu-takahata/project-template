@@ -14,4 +14,4 @@ async def health_check():
     """ヘルスチェックエンドポイント"""
     # データベース接続確認
     # db.execute(text("SELECT 1"))
-    return {"status": "healthy", "database": "connected"}
+    return {"status": "healthy1", "database": "connected"}
