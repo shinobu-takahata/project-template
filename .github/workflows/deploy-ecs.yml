@@ -97,7 +97,7 @@ jobs:
             --overrides '{
               "containerOverrides": [{
                 "name": "backend",
-                "command": ["alembic", "upgrade", "head"]
+                "command": ["uv", "run", "alembic", "upgrade", "head"]
               }]
             }' \
             --region ${{ env.AWS_REGION }} \
