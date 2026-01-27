@@ -20,6 +20,10 @@ RUN chown -R appuser:appuser /app
 # アプリケーションコードをコピー
 COPY --chown=appuser:appuser app /app/app
 
+# Alembic設定とマイグレーションファイルをコピー
+COPY --chown=appuser:appuser alembic.ini /app/alembic.ini
+COPY --chown=appuser:appuser alembic /app/alembic
+
 # 非rootユーザーに切り替え
 USER appuser
 
