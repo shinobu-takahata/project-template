@@ -1,3 +1,4 @@
+import os
 from logging.config import fileConfig
 
 from alembic import context
@@ -9,6 +10,26 @@ from app.infrastructure.database.models import *  # noqa: F401, F403
 config = context.config
 fileConfig(config.config_file_name)
 target_metadata = Base.metadata
+
+# 環境変数からデータベースURLを構築（ECS環境用）
+def get_database_url():
+    """環境変数からデータベースURLを構築"""
+    db_user = os.getenv("DATABASE_USER")
+    db_password = os.getenv("DATABASE_PASSWORD")
+    db_host = os.getenv("DATABASE_HOST")
+    db_port = os.getenv("DATABASE_PORT", "5432")
+    db_name = os.getenv("DATABASE_NAME", "postgres")
+
+    if db_user and db_password and db_host:
+        return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+
+    # 環境変数がない場合はalembic.iniの設定を使用（ローカル開発用）
+    return config.get_main_option("sqlalchemy.url")
+
+# 環境変数が設定されている場合、alembic.iniの設定を上書き
+database_url = get_database_url()
+if database_url:
+    config.set_main_option("sqlalchemy.url", database_url)
 
 
 def run_migrations_offline():
