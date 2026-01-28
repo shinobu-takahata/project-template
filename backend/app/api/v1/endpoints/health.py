@@ -20,4 +20,4 @@ async def health_check():
     logger.debug("Performing health check database query")
     logger.info("Health check endpoint called")
     logger.error("This is a test error log for health check")
-    return {"status": "healthy1", "database": "connected"}
+    return {"status": "healthy-2", "database": "connected"}

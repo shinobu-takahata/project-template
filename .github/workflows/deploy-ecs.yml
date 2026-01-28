@@ -71,62 +71,62 @@ jobs:
           
           echo "image=$ECR_REGISTRY/$ECR_REPOSITORY:$IMAGE_TAG" >> $GITHUB_OUTPUT
 
-      # - name: Run Database Migration
-      #   run: |
-      #     echo "Running database migration..."
+      - name: Run Database Migration
+        run: |
+          echo "Running database migration..."
 
-      #     # ECSサービスから現在のネットワーク設定を取得
-      #     NETWORK_CONFIG=$(aws ecs describe-services \
-      #       --cluster ${{ env.ECS_CLUSTER }} \
-      #       --services ${{ env.ECS_SERVICE }} \
-      #       --region ${{ env.AWS_REGION }} \
-      #       --query 'services[0].networkConfiguration.awsvpcConfiguration' \
-      #       --output json)
+          # ECSサービスから現在のネットワーク設定を取得
+          NETWORK_CONFIG=$(aws ecs describe-services \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --services ${{ env.ECS_SERVICE }} \
+            --region ${{ env.AWS_REGION }} \
+            --query 'services[0].networkConfiguration.awsvpcConfiguration' \
+            --output json)
 
-      #     SUBNETS=$(echo $NETWORK_CONFIG | jq -r '.subnets | join(",")')
-      #     SECURITY_GROUPS=$(echo $NETWORK_CONFIG | jq -r '.securityGroups | join(",")')
+          SUBNETS=$(echo $NETWORK_CONFIG | jq -r '.subnets | join(",")')
+          SECURITY_GROUPS=$(echo $NETWORK_CONFIG | jq -r '.securityGroups | join(",")')
 
-      #     echo "Using subnets: $SUBNETS"
-      #     echo "Using security groups: $SECURITY_GROUPS"
+          echo "Using subnets: $SUBNETS"
+          echo "Using security groups: $SECURITY_GROUPS"
 
-      #     TASK_ARN=$(aws ecs run-task \
-      #       --cluster ${{ env.ECS_CLUSTER }} \
-      #       --task-definition backend-${{ env.ENVIRONMENT }} \
-      #       --launch-type FARGATE \
-      #       --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUPS],assignPublicIp=DISABLED}" \
-      #       --overrides '{
-      #         "containerOverrides": [{
-      #           "name": "backend",
-      #           "command": ["uv", "run", "alembic", "upgrade", "head"]
-      #         }]
-      #       }' \
-      #       --region ${{ env.AWS_REGION }} \
-      #       --query 'tasks[0].taskArn' \
-      #       --output text)
+          TASK_ARN=$(aws ecs run-task \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --task-definition backend-${{ env.ENVIRONMENT }} \
+            --launch-type FARGATE \
+            --network-configuration "awsvpcConfiguration={subnets=[$SUBNETS],securityGroups=[$SECURITY_GROUPS],assignPublicIp=DISABLED}" \
+            --overrides '{
+              "containerOverrides": [{
+                "name": "backend",
+                "command": ["uv", "run", "alembic", "upgrade", "head"]
+              }]
+            }' \
+            --region ${{ env.AWS_REGION }} \
+            --query 'tasks[0].taskArn' \
+            --output text)
 
-      #     echo "Migration task started: $TASK_ARN"
+          echo "Migration task started: $TASK_ARN"
 
-      #     # タスクの完了を待機
-      #     aws ecs wait tasks-stopped \
-      #       --cluster ${{ env.ECS_CLUSTER }} \
-      #       --tasks $TASK_ARN \
-      #       --region ${{ env.AWS_REGION }}
+          # タスクの完了を待機
+          aws ecs wait tasks-stopped \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $TASK_ARN \
+            --region ${{ env.AWS_REGION }}
 
-      #     # タスクの結果を確認
-      #     EXIT_CODE=$(aws ecs describe-tasks \
-      #       --cluster ${{ env.ECS_CLUSTER }} \
-      #       --tasks $TASK_ARN \
-      #       --region ${{ env.AWS_REGION }} \
-      #       --query 'tasks[0].containers[0].exitCode' \
-      #       --output text)
+          # タスクの結果を確認
+          EXIT_CODE=$(aws ecs describe-tasks \
+            --cluster ${{ env.ECS_CLUSTER }} \
+            --tasks $TASK_ARN \
+            --region ${{ env.AWS_REGION }} \
+            --query 'tasks[0].containers[0].exitCode' \
+            --output text)
 
-      #     if [ "$EXIT_CODE" != "0" ]; then
-      #       echo "❌ Migration failed with exit code $EXIT_CODE"
-      #       echo "Check CloudWatch Logs: /ecs/backend-${{ env.ENVIRONMENT }}"
-      #       exit 1
-      #     fi
+          if [ "$EXIT_CODE" != "0" ]; then
+            echo "❌ Migration failed with exit code $EXIT_CODE"
+            echo "Check CloudWatch Logs: /ecs/backend-${{ env.ENVIRONMENT }}"
+            exit 1
+          fi
 
-      #     echo "✅ Migration completed successfully"
+          echo "✅ Migration completed successfully"
 
       - name: Download current task definition
         id: get-task-def
