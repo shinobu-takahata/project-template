@@ -49,20 +49,20 @@ export class ComputeStack extends Stack {
     });
 
     // Secrets Managerからデータベース認証情報を参照
-    // const dbSecretArn = Fn.importValue(`${config.envName}-DbSecretArn`);
-    // const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
-    //   this,
-    //   "DbSecret",
-    //   dbSecretArn
-    // );
+    const dbSecretArn = Fn.importValue(`${config.envName}-DbSecretArn`);
+    const dbSecret = secretsmanager.Secret.fromSecretCompleteArn(
+      this,
+      "DbSecret",
+      dbSecretArn,
+    );
 
     // データベースエンドポイントのインポート
-    // const dbClusterEndpoint = Fn.importValue(
-    //   `${config.envName}-DbClusterEndpoint`
-    // );
+    const dbClusterEndpoint = Fn.importValue(
+      `${config.envName}-DbClusterEndpoint`,
+    );
 
     // WebAcl ARNのインポート（SecurityStackから）
-    // const webAclArn = Fn.importValue(`${config.envName}-WebAclArn`);
+    const webAclArn = Fn.importValue(`${config.envName}-WebAclArn`);
 
     // =========================================
     // 1. ECRリポジトリのインポート（EcrStackから）
@@ -359,13 +359,13 @@ export class ComputeStack extends Stack {
     appLogGroup.grantWrite(executionRole);
 
     // Secrets Manager読み取り権限
-    // executionRole.addToPolicy(
-    //   new iam.PolicyStatement({
-    //     effect: iam.Effect.ALLOW,
-    //     actions: ["secretsmanager:GetSecretValue"],
-    //     resources: [dbSecretArn],
-    //   })
-    // );
+    executionRole.addToPolicy(
+      new iam.PolicyStatement({
+        effect: iam.Effect.ALLOW,
+        actions: ["secretsmanager:GetSecretValue"],
+        resources: [dbSecretArn],
+      }),
+    );
 
     // タスクロール
     const taskRole = new iam.Role(this, "TaskRole", {
@@ -543,13 +543,6 @@ export class ComputeStack extends Stack {
       },
       memoryReservationMiB: 50,
       essential: true,
-      // healthCheck: {
-      //   command: ["CMD", "curl", "-f", "http://localhost:2020/api/v1/health"],
-      //   interval: Duration.seconds(30),
-      //   timeout: Duration.seconds(5),
-      //   retries: 2,
-      //   startPeriod: Duration.seconds(60),
-      // },
     });
 
     // メインコンテナ（FastAPI）
@@ -574,14 +567,14 @@ export class ComputeStack extends Stack {
         S3_BUCKET: appBucket.bucketName,
         S3_REGION: config.region,
         // データベースエンドポイント（URLはアプリ側でシークレットと組み合わせて構築）
-        // DATABASE_HOST: dbClusterEndpoint,
-        // DATABASE_PORT: "5432",
-        // DATABASE_NAME: "postgres",
+        DATABASE_HOST: dbClusterEndpoint,
+        DATABASE_PORT: "5432",
+        DATABASE_NAME: "postgres",
       },
-      // secrets: {
-      //   DATABASE_USER: ecs.Secret.fromSecretsManager(dbSecret, "username"),
-      //   DATABASE_PASSWORD: ecs.Secret.fromSecretsManager(dbSecret, "password"),
-      // },
+      secrets: {
+        DATABASE_USER: ecs.Secret.fromSecretsManager(dbSecret, "username"),
+        DATABASE_PASSWORD: ecs.Secret.fromSecretsManager(dbSecret, "password"),
+      },
 
       // FireLens経由でFluent Bitにログを送信
       logging: ecs.LogDrivers.firelens({

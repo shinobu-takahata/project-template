@@ -32,10 +32,10 @@ const networkStack = new NetworkStack(app, `NetworkStack-${envName}`, {
 // });
 
 // DatabaseStackの作成
-// const databaseStack = new DatabaseStack(app, `DatabaseStack-${envName}`, {
-//   env,
-//   config,
-// });
+const databaseStack = new DatabaseStack(app, `DatabaseStack-${envName}`, {
+  env,
+  config,
+});
 
 // EcrStackの作成（Phase 4.5）
 const ecrStack = new EcrStack(app, `EcrStack-${envName}`, {
@@ -53,7 +53,7 @@ const computeStack = new ComputeStack(app, `ComputeStack-${envName}`, {
 computeStack.addDependency(networkStack);
 computeStack.addDependency(ecrStack);
 // computeStack.addDependency(securityStack);
-// computeStack.addDependency(databaseStack);
+computeStack.addDependency(databaseStack);
 
 // CDKアプリケーションの合成
 app.synth();
