@@ -46,8 +46,10 @@ class Settings(BaseSettings):
         # If individual components are set (ECS deployment), build URL
         if all([self.DATABASE_HOST, self.DATABASE_PORT, self.DATABASE_NAME,
                 self.DATABASE_USER, self.DATABASE_PASSWORD]):
+            # パスワードに%がある場合は%%にエスケープ（ConfigParser対策）
+            escaped_password = self.DATABASE_PASSWORD.replace('%', '%%')
             return (
-                f"postgresql://{self.DATABASE_USER}:{self.DATABASE_PASSWORD}"
+                f"postgresql://{self.DATABASE_USER}:{escaped_password}"
                 f"@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
             )
 
