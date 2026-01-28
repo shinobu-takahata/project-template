@@ -1,5 +1,6 @@
 import os
 from logging.config import fileConfig
+from urllib.parse import quote_plus
 
 from alembic import context
 from sqlalchemy import engine_from_config, pool
@@ -21,7 +22,9 @@ def get_database_url():
     db_name = os.getenv("DATABASE_NAME", "postgres")
 
     if db_user and db_password and db_host:
-        return f"postgresql://{db_user}:{db_password}@{db_host}:{db_port}/{db_name}"
+        # パスワードに特殊文字が含まれる場合にURLエンコード
+        encoded_password = quote_plus(db_password)
+        return f"postgresql://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
 
     # 環境変数がない場合はalembic.iniの設定を使用（ローカル開発用）
     return config.get_main_option("sqlalchemy.url")
