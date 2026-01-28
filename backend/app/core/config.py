@@ -1,4 +1,5 @@
 from typing import Optional
+from urllib.parse import quote_plus
 from pydantic import ConfigDict, computed_field
 from pydantic_settings import BaseSettings
 
@@ -46,12 +47,10 @@ class Settings(BaseSettings):
         # If individual components are set (ECS deployment), build URL
         if all([self.DATABASE_HOST, self.DATABASE_PORT, self.DATABASE_NAME,
                 self.DATABASE_USER, self.DATABASE_PASSWORD]):
-            # パスワードに%がある場合は%%にエスケープ（ConfigParser対策）
-            escaped_password = self.DATABASE_PASSWORD.replace('%', '%%')
-            print("aaaaaaaaaaaa")
-            print(escaped_password)
+            # パスワードに特殊文字が含まれる場合にURLエンコード
+            encoded_password = quote_plus(self.DATABASE_PASSWORD)
             return (
-                f"postgresql://{self.DATABASE_USER}:{escaped_password}"
+                f"postgresql://{self.DATABASE_USER}:{encoded_password}"
                 f"@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
             )
 

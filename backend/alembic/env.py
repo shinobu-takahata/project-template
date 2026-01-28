@@ -3,7 +3,7 @@ from logging.config import fileConfig
 from urllib.parse import quote_plus
 
 from alembic import context
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, create_engine
 
 from app.core.database import Base
 from app.infrastructure.database.models import *  # noqa: F401, F403
@@ -24,22 +24,17 @@ def get_database_url():
     if db_user and db_password and db_host:
         # パスワードに特殊文字が含まれる場合にURLエンコード
         encoded_password = quote_plus(db_password)
-        # ConfigParserのinterpolation構文エラーを回避するため、%を%%にエスケープ
-        db_url = f"postgresql://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
-        db_url = db_url.replace('%', '%%')
-        return db_url
+        return f"postgresql://{db_user}:{encoded_password}@{db_host}:{db_port}/{db_name}"
 
-    # 環境変数がない場合はalembic.iniの設定を使用（ローカル開発用）
-    return config.get_main_option("sqlalchemy.url")
-
-# 環境変数が設定されている場合、alembic.iniの設定を上書き
-database_url = get_database_url()
-if database_url:
-    config.set_main_option("sqlalchemy.url", database_url)
+    # 環境変数がない場合はNoneを返す（alembic.iniの設定を使用）
+    return None
 
 
 def run_migrations_offline():
-    url = config.get_main_option("sqlalchemy.url")
+    """Run migrations in 'offline' mode."""
+    # 環境変数からURLを取得、なければalembic.iniから取得
+    url = get_database_url() or config.get_main_option("sqlalchemy.url")
+
     context.configure(
         url=url,
         target_metadata=target_metadata,
@@ -51,11 +46,21 @@ def run_migrations_offline():
 
 
 def run_migrations_online():
-    connectable = engine_from_config(
-        config.get_section(config.config_ini_section),
-        prefix="sqlalchemy.",
-        poolclass=pool.NullPool,
-    )
+    """Run migrations in 'online' mode."""
+    # 環境変数からURLを取得
+    database_url = get_database_url()
+
+    if database_url:
+        # 環境変数が設定されている場合は直接エンジンを作成（ConfigParserを回避）
+        connectable = create_engine(database_url, poolclass=pool.NullPool)
+    else:
+        # ローカル開発環境ではalembic.iniから設定を取得
+        connectable = engine_from_config(
+            config.get_section(config.config_ini_section),
+            prefix="sqlalchemy.",
+            poolclass=pool.NullPool,
+        )
+
     with connectable.connect() as connection:
         context.configure(connection=connection, target_metadata=target_metadata)
         with context.begin_transaction():
