@@ -48,6 +48,8 @@ class Settings(BaseSettings):
                 self.DATABASE_USER, self.DATABASE_PASSWORD]):
             # パスワードに%がある場合は%%にエスケープ（ConfigParser対策）
             escaped_password = self.DATABASE_PASSWORD.replace('%', '%%')
+            print("aaaaaaaaaaaa")
+            print(escaped_password)
             return (
                 f"postgresql://{self.DATABASE_USER}:{escaped_password}"
                 f"@{self.DATABASE_HOST}:{self.DATABASE_PORT}/{self.DATABASE_NAME}"
