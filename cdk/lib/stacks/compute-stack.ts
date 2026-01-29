@@ -696,5 +696,17 @@ export class ComputeStack extends Stack {
       description: "Application S3 Bucket Name",
       exportName: `${config.envName}-AppBucketName`,
     });
+
+    new CfnOutput(this, "TargetGroupArn", {
+      value: targetGroup.targetGroupArn,
+      description: "Target Group ARN",
+      exportName: `${config.envName}-TargetGroupArn`,
+    });
+
+    new CfnOutput(this, "ErrorLogGroupName", {
+      value: errorLogGroup.logGroupName,
+      description: "Error Log Group Name",
+      exportName: `${config.envName}-ErrorLogGroupName`,
+    });
   }
 }

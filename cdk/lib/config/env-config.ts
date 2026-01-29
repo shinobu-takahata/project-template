@@ -49,6 +49,30 @@ export interface EnvConfig {
     repository: string;      // リポジトリ名
     branches: string[];      // 許可するブランチ（例: ['main', 'develop']）
   };
+
+  // 監視設定
+  monitoring?: {
+    // アラート通知先メールアドレス
+    alertEmail?: string;
+
+    // アラーム閾値
+    thresholds?: {
+      // ECS関連
+      errorLogCount?: number;              // デフォルト: 5
+      ecsCpuPercent?: number;              // デフォルト: 80
+      ecsMemoryPercent?: number;           // デフォルト: 80
+
+      // Aurora関連
+      auroraCpuPercent?: number;           // デフォルト: 80
+      auroraFreeableMemoryBytes?: number;  // デフォルト: 1GB (1_000_000_000)
+      auroraConnectionsCount?: number;     // デフォルト: 80
+      auroraReplicaLagMs?: number;         // デフォルト: 1000 (1秒)
+
+      // ALB関連
+      alb5xxErrorRatePercent?: number;     // デフォルト: 5
+      albResponseTimeSeconds?: number;     // デフォルト: 2
+    };
+  };
 }
 
 export function getEnvConfig(envName: string): EnvConfig {

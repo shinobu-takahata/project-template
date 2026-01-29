@@ -47,4 +47,25 @@ export const devConfig: EnvConfig = {
     repository: "project-template", // TODO: 実際のリポジトリ名に変更
     branches: ["main", "develop"], // 開発環境はmainとdevelopからのデプロイを許可
   },
+
+  // 監視設定（開発環境は閾値を緩めに設定）
+  monitoring: {
+    alertEmail: "dev-alerts@example.com", // TODO: 実際のメールアドレスに変更
+    thresholds: {
+      // ECS関連
+      errorLogCount: 10,
+      ecsCpuPercent: 85,
+      ecsMemoryPercent: 85,
+
+      // Aurora関連
+      auroraCpuPercent: 85,
+      auroraFreeableMemoryBytes: 500_000_000, // 500MB
+      auroraConnectionsCount: 50,
+      auroraReplicaLagMs: 2000, // 2秒
+
+      // ALB関連
+      alb5xxErrorRatePercent: 10,
+      albResponseTimeSeconds: 3,
+    },
+  },
 };

@@ -46,5 +46,26 @@ export const prodConfig: EnvConfig = {
     owner: 'your-organization',      // TODO: 実際のGitHub組織名またはユーザー名に変更
     repository: 'your-repository',   // TODO: 実際のリポジトリ名に変更
     branches: ['main']               // 本番環境はmainブランチのみからのデプロイを許可
-  }
+  },
+
+  // 監視設定（本番環境は閾値を厳格に設定）
+  monitoring: {
+    alertEmail: 'prod-alerts@example.com', // TODO: 実際のメールアドレスに変更
+    thresholds: {
+      // ECS関連
+      errorLogCount: 5,
+      ecsCpuPercent: 80,
+      ecsMemoryPercent: 80,
+
+      // Aurora関連
+      auroraCpuPercent: 80,
+      auroraFreeableMemoryBytes: 1_000_000_000, // 1GB
+      auroraConnectionsCount: 80,
+      auroraReplicaLagMs: 1000, // 1秒
+
+      // ALB関連
+      alb5xxErrorRatePercent: 5,
+      albResponseTimeSeconds: 2,
+    },
+  },
 };

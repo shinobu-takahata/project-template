@@ -5,6 +5,7 @@ import { SecurityStack } from "../lib/stacks/security-stack";
 import { DatabaseStack } from "../lib/stacks/database-stack";
 import { EcrStack } from "../lib/stacks/ecr-stack";
 import { ComputeStack } from "../lib/stacks/compute-stack";
+import { MonitoringStack } from "../lib/stacks/monitoring-stack";
 import { getEnvConfig } from "../lib/config/env-config";
 
 const app = new cdk.App();
@@ -54,6 +55,16 @@ computeStack.addDependency(networkStack);
 computeStack.addDependency(ecrStack);
 // computeStack.addDependency(securityStack);
 computeStack.addDependency(databaseStack);
+
+// MonitoringStackの作成（Phase 6）
+const monitoringStack = new MonitoringStack(app, `MonitoringStack-${envName}`, {
+  env,
+  config,
+});
+
+// MonitoringStackの依存関係を設定
+monitoringStack.addDependency(computeStack);
+monitoringStack.addDependency(databaseStack);
 
 // CDKアプリケーションの合成
 app.synth();
