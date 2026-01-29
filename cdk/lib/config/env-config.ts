@@ -73,6 +73,19 @@ export interface EnvConfig {
       albResponseTimeSeconds?: number;     // デフォルト: 2
     };
   };
+
+  // オーケストレーション設定（Step Functions + EventBridge）
+  orchestration?: {
+    // スケジュール実行の有効/無効
+    enabled: boolean;
+
+    // EventBridgeスケジュール式（cron式、UTC）
+    // 例: 'cron(0 17 * * ? *)' = JST午前2時
+    scheduleExpression: string;
+
+    // バッチスクリプトのパス（コンテナ内）
+    batchScriptPath: string;
+  };
 }
 
 export function getEnvConfig(envName: string): EnvConfig {

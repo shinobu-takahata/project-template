@@ -68,4 +68,11 @@ export const prodConfig: EnvConfig = {
       albResponseTimeSeconds: 2,
     },
   },
+
+  // オーケストレーション設定（本番環境はスケジュール実行を有効化）
+  orchestration: {
+    enabled: true, // 本番環境では定期実行
+    scheduleExpression: 'cron(0 17 * * ? *)', // JST午前2時
+    batchScriptPath: '/app/batch/sample_batch.py',
+  },
 };

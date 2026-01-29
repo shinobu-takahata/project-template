@@ -68,4 +68,11 @@ export const devConfig: EnvConfig = {
       albResponseTimeSeconds: 3,
     },
   },
+
+  // オーケストレーション設定（開発環境はスケジュール実行を無効化）
+  orchestration: {
+    enabled: false, // 開発環境では手動実行のみ
+    scheduleExpression: "cron(0 17 * * ? *)", // JST午前2時（参考用）
+    batchScriptPath: "/app/batch/sample_batch.py",
+  },
 };

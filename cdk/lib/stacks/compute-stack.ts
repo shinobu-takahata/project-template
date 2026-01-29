@@ -708,5 +708,39 @@ export class ComputeStack extends Stack {
       description: "Error Log Group Name",
       exportName: `${config.envName}-ErrorLogGroupName`,
     });
+
+    // OrchestrationStack用のCfnOutput
+    new CfnOutput(this, "TaskDefinitionArn", {
+      value: taskDefinition.taskDefinitionArn,
+      description: "ECS Task Definition ARN",
+      exportName: `${config.envName}-TaskDefinitionArn`,
+    });
+
+    new CfnOutput(this, "TaskRoleArn", {
+      value: taskRole.roleArn,
+      description: "ECS Task Role ARN",
+      exportName: `${config.envName}-TaskRoleArn`,
+    });
+
+    new CfnOutput(this, "TaskExecutionRoleArn", {
+      value: executionRole.roleArn,
+      description: "ECS Task Execution Role ARN",
+      exportName: `${config.envName}-TaskExecutionRoleArn`,
+    });
+
+    new CfnOutput(this, "PrivateSubnetIds", {
+      value: Fn.join(",", [
+        Fn.importValue(`${config.envName}-PrivateSubnetId1`),
+        Fn.importValue(`${config.envName}-PrivateSubnetId2`),
+      ]),
+      description: "Private Subnet IDs (comma-separated)",
+      exportName: `${config.envName}-PrivateSubnetIds`,
+    });
+
+    new CfnOutput(this, "EcsClusterArn", {
+      value: this.ecsCluster.clusterArn,
+      description: "ECS Cluster ARN",
+      exportName: `${config.envName}-EcsClusterArn`,
+    });
   }
 }
