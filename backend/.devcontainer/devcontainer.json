@@ -11,7 +11,8 @@
         "ms-python.python",
         "ms-python.vscode-pylance",
         "charliermarsh.ruff",
-        "ms-python.debugpy"
+        "ms-python.debugpy",
+        "anthropic.claude-code"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/app/.venv/bin/python",
@@ -50,7 +51,8 @@
   },
   "postCreateCommand": "uv sync",
   "mounts": [
-    "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached"
+    "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.claude,target=/root/.claude,type=bind,consistency=cached"
   ],
   "remoteEnv": {
     "PYTHONUNBUFFERED": "1",
