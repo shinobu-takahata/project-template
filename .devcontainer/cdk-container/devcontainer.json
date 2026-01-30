@@ -1,0 +1,51 @@
+{
+  "name": "CDK (AWS Infrastructure)",
+  "dockerComposeFile": "../../docker-compose.yml",
+  "service": "cdk",
+  "workspaceFolder": "/cdk",
+  "runServices": ["cdk"],
+  "overrideCommand": true,
+  "customizations": {
+    "vscode": {
+      "extensions": [
+        "dbaeumer.vscode-eslint",
+        "esbenp.prettier-vscode",
+        "amazonwebservices.aws-toolkit-vscode",
+        "anthropic.claude-code"
+      ],
+      "settings": {
+        "[typescript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.fixAll.eslint": "explicit"
+          }
+        },
+        "[javascript]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true,
+          "editor.codeActionsOnSave": {
+            "source.fixAll.eslint": "explicit"
+          }
+        },
+        "[json]": {
+          "editor.defaultFormatter": "esbenp.prettier-vscode",
+          "editor.formatOnSave": true
+        }
+      }
+    }
+  },
+  "postCreateCommand": "npm install",
+  "mounts": [
+    "source=${localEnv:HOME}/.gitconfig,target=/root/.gitconfig,type=bind,consistency=cached",
+    "source=${localEnv:HOME}/.aws,target=/root/.aws,type=bind,consistency=cached"
+  ],
+  "remoteEnv": {
+    "AWS_REGION": "ap-northeast-1",
+    "AWS_PROFILE": "takahata",
+    "SHELL": "/bin/bash"
+  },
+  "containerEnv": {
+    "SHELL": "/bin/bash"
+  }
+}
