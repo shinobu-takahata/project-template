@@ -12,3 +12,11 @@
 
 ## Backend
 /README/README_backend.mdを参照
+
+## エディタ
+Github CodeSpacesを使用している場合、デフォルトの設定だと、拡張機能を入れてもセマンティックハイライトが効かないです。
+そのため、settings.jsonに以下を加える必要があります。
+（エディタのカラーテーマを特定のものにする必要があります。）
+```
+"workbench.colorTheme": "Default Dark Modern",
+```
