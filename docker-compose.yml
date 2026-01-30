@@ -9,7 +9,7 @@ services:
       - "8000:8000"
     environment:
       - PYTHONUNBUFFERED=1
-      - DATABASE_URL=postgresql://postgres:postgres@postgres:5432/app_db
+      - _DATABASE_URL=postgresql://postgres:postgres@postgres:5432/app_db
       - ENV=development
       - SMTP_HOST=mailhog
       - SMTP_PORT=1025
