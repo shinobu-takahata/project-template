@@ -59,5 +59,11 @@
   },
   "containerEnv": {
     "SHELL": "/bin/bash"
+  },
+  "features": {
+      // ホストマシンのDockerを利用するための設定
+      "docker-from-docker": {
+          "version": "latest"
+      }
   }
 }
