@@ -140,6 +140,7 @@ uv run pytest -s
 
 # カバレッジレポート付き
 uv run pytest --cov=app --cov-report=html
+uv run pytest --cov=app --cov-report=term-missing tests/
 ```
 
 カバレッジレポートは `htmlcov/index.html` に生成されます。
@@ -165,7 +166,7 @@ tests/
 ├── conftest.py              # 共通フィクスチャ
 ├── unit/                    # ユニットテスト
 │   ├── domain/             # ドメイン層のテスト
-│   ├── application/        # アプリケーション層のテスト
+│   ├── repository/         # リポジトリ層のテスト
 │   └── mocks/              # モックオブジェクト
 └── integration/            # 結合テスト
     ├── conftest.py         # 結合テスト用フィクスチャ

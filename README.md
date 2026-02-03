@@ -20,3 +20,7 @@ Github CodeSpacesを使用している場合、デフォルトの設定だと、
 ```
 "workbench.colorTheme": "Default Dark Modern",
 ```
+
+## GitHub CodespacesからのClaude Codeの利用
+「Claude account with subscription」を押下したした際に自動的に表示される画面ではなく、
+コンソールに表示されているURLをコピーして開いてから承認すると利用可能
