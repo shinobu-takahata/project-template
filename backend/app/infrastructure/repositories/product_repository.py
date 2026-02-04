@@ -1,5 +1,5 @@
 from sqlalchemy import func, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from app.domain.product.entities.product import Product
 from app.domain.product.repositories.product_repository import IProductRepository
@@ -13,13 +13,29 @@ from app.infrastructure.database.models import ProductModel
 class ProductRepository(IProductRepository):
     """商品リポジトリ実装"""
 
+    _PRODUCT_COLUMNS = (
+        ProductModel.id,
+        ProductModel.name,
+        ProductModel.sku,
+        ProductModel.price,
+        ProductModel.category,
+        ProductModel.description,
+        ProductModel.deleted_at,
+        ProductModel.created_at,
+        ProductModel.updated_at,
+    )
+
     def __init__(self, db: Session):
         self.db = db
 
     def find_by_id(self, product_id: ProductId) -> Product | None:
-        stmt = select(ProductModel).where(
-            ProductModel.id == product_id.value,
-            ProductModel.deleted_at.is_(None),
+        stmt = (
+            select(ProductModel)
+            .options(load_only(*self._PRODUCT_COLUMNS))
+            .where(
+                ProductModel.id == product_id.value,
+                ProductModel.deleted_at.is_(None),
+            )
         )
         model = self.db.scalars(stmt).first()
 
@@ -29,9 +45,13 @@ class ProductRepository(IProductRepository):
         return self._to_entity(model)
 
     def find_by_sku(self, sku: SKU) -> Product | None:
-        stmt = select(ProductModel).where(
-            ProductModel.sku == sku.value,
-            ProductModel.deleted_at.is_(None),
+        stmt = (
+            select(ProductModel)
+            .options(load_only(*self._PRODUCT_COLUMNS))
+            .where(
+                ProductModel.sku == sku.value,
+                ProductModel.deleted_at.is_(None),
+            )
         )
         model = self.db.scalars(stmt).first()
 
@@ -46,18 +66,22 @@ class ProductRepository(IProductRepository):
         page: int = 1,
         per_page: int = 20,
     ) -> tuple[list[Product], int]:
-        stmt = select(ProductModel).where(
+        base_stmt = select(ProductModel).where(
             ProductModel.deleted_at.is_(None),
         )
 
         if category:
-            stmt = stmt.where(ProductModel.category == category)
+            base_stmt = base_stmt.where(ProductModel.category == category)
 
-        count_stmt = select(func.count()).select_from(stmt.subquery())
+        count_stmt = select(func.count()).select_from(base_stmt.subquery())
         total = self.db.scalar(count_stmt) or 0
 
         offset = (page - 1) * per_page
-        stmt = stmt.offset(offset).limit(per_page)
+        stmt = (
+            base_stmt.options(load_only(*self._PRODUCT_COLUMNS))
+            .offset(offset)
+            .limit(per_page)
+        )
         models = self.db.scalars(stmt).all()
 
         products = [self._to_entity(m) for m in models]
@@ -65,7 +89,9 @@ class ProductRepository(IProductRepository):
 
     def save(self, product: Product) -> None:
         exists = self.db.scalar(
-            select(ProductModel.id).where(ProductModel.id == product.id.value)
+            select(ProductModel.id).where(
+                ProductModel.id == product.id.value
+            )
         )
 
         if exists is None:
@@ -99,9 +125,13 @@ class ProductRepository(IProductRepository):
         self.db.flush()
 
     def find_by_ids(self, product_ids: list[ProductId]) -> list[Product]:
-        stmt = select(ProductModel).where(
-            ProductModel.id.in_([pid.value for pid in product_ids]),
-            ProductModel.deleted_at.is_(None),
+        stmt = (
+            select(ProductModel)
+            .options(load_only(*self._PRODUCT_COLUMNS))
+            .where(
+                ProductModel.id.in_([pid.value for pid in product_ids]),
+                ProductModel.deleted_at.is_(None),
+            )
         )
         models = self.db.scalars(stmt).all()
         return [self._to_entity(m) for m in models]

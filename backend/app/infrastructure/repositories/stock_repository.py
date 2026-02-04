@@ -1,5 +1,5 @@
 from sqlalchemy import select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only
 
 from app.domain.product.value_objects.product_id import ProductId
 from app.domain.stock.entities.stock import Stock
@@ -11,6 +11,14 @@ from app.infrastructure.database.models import StockModel
 
 class StockRepository(IStockRepository):
     """在庫リポジトリ実装"""
+
+    _STOCK_COLUMNS = (
+        StockModel.id,
+        StockModel.product_id,
+        StockModel.quantity,
+        StockModel.created_at,
+        StockModel.updated_at,
+    )
 
     def __init__(self, db: Session):
         self.db = db
@@ -43,8 +51,10 @@ class StockRepository(IStockRepository):
         self.db.flush()
 
     def find_by_product_id(self, product_id: ProductId) -> Stock | None:
-        stmt = select(StockModel).where(
-            StockModel.product_id == product_id.value,
+        stmt = (
+            select(StockModel)
+            .options(load_only(*self._STOCK_COLUMNS))
+            .where(StockModel.product_id == product_id.value)
         )
         model = self.db.scalars(stmt).first()
 

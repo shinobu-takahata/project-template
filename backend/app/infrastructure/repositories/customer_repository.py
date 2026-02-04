@@ -1,5 +1,5 @@
 from sqlalchemy import delete, select, update
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, load_only, selectinload
 
 from app.domain.customer.entities.customer import Customer
 from app.domain.customer.entities.shipping_address import ShippingAddress
@@ -15,12 +15,41 @@ from app.infrastructure.database.models import CustomerModel, ShippingAddressMod
 class CustomerRepository(ICustomerRepository):
     """顧客リポジトリ実装"""
 
+    _CUSTOMER_COLUMNS = (
+        CustomerModel.id,
+        CustomerModel.name,
+        CustomerModel.email,
+        CustomerModel.member_rank,
+        CustomerModel.created_at,
+        CustomerModel.updated_at,
+    )
+
+    _SHIPPING_ADDRESS_COLUMNS = (
+        ShippingAddressModel.id,
+        ShippingAddressModel.customer_id,
+        ShippingAddressModel.label,
+        ShippingAddressModel.postal_code,
+        ShippingAddressModel.prefecture,
+        ShippingAddressModel.city,
+        ShippingAddressModel.street,
+        ShippingAddressModel.is_default,
+        ShippingAddressModel.created_at,
+        ShippingAddressModel.updated_at,
+    )
+
     def __init__(self, db: Session):
         self.db = db
 
     def find_by_id(self, customer_id: CustomerId) -> Customer | None:
-        stmt = select(CustomerModel).where(
-            CustomerModel.id == customer_id.value
+        stmt = (
+            select(CustomerModel)
+            .options(
+                load_only(*self._CUSTOMER_COLUMNS),
+                selectinload(CustomerModel.shipping_addresses).load_only(
+                    *self._SHIPPING_ADDRESS_COLUMNS
+                ),
+            )
+            .where(CustomerModel.id == customer_id.value)
         )
         model = self.db.scalars(stmt).first()
 
@@ -30,8 +59,15 @@ class CustomerRepository(ICustomerRepository):
         return self._to_entity(model)
 
     def find_by_email(self, email: EmailAddress) -> Customer | None:
-        stmt = select(CustomerModel).where(
-            CustomerModel.email == email.value
+        stmt = (
+            select(CustomerModel)
+            .options(
+                load_only(*self._CUSTOMER_COLUMNS),
+                selectinload(CustomerModel.shipping_addresses).load_only(
+                    *self._SHIPPING_ADDRESS_COLUMNS
+                ),
+            )
+            .where(CustomerModel.email == email.value)
         )
         model = self.db.scalars(stmt).first()
 
