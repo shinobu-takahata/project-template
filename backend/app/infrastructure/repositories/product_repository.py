@@ -98,6 +98,14 @@ class ProductRepository(IProductRepository):
 
         self.db.flush()
 
+    def find_by_ids(self, product_ids: list[ProductId]) -> list[Product]:
+        stmt = select(ProductModel).where(
+            ProductModel.id.in_([pid.value for pid in product_ids]),
+            ProductModel.deleted_at.is_(None),
+        )
+        models = self.db.scalars(stmt).all()
+        return [self._to_entity(m) for m in models]
+
     def _to_entity(self, model: ProductModel) -> Product:
         return Product(
             id=ProductId(model.id),

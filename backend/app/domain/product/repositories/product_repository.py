@@ -36,3 +36,8 @@ class IProductRepository(ABC):
     def save(self, product: Product) -> None:
         """商品を保存する（作成・更新）"""
         pass
+
+    @abstractmethod
+    def find_by_ids(self, product_ids: list[ProductId]) -> list[Product]:
+        """複数の商品IDで商品を一括取得する"""
+        pass

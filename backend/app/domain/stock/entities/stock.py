@@ -27,3 +27,26 @@ class Stock:
             created_at=now,
             updated_at=now,
         )
+
+    def allocate(self, quantity: int) -> None:
+        """在庫を引き当てる"""
+        if quantity <= 0:
+            raise ValueError("Allocation quantity must be positive")
+
+        new_quantity = self.quantity.value - quantity
+        if new_quantity < 0:
+            raise ValueError(
+                f"Insufficient stock: requested {quantity}, "
+                f"available {self.quantity.value}"
+            )
+
+        self.quantity = StockQuantity(new_quantity)
+        self.updated_at = datetime.now(UTC)
+
+    def release(self, quantity: int) -> None:
+        """在庫を戻す"""
+        if quantity <= 0:
+            raise ValueError("Release quantity must be positive")
+
+        self.quantity = StockQuantity(self.quantity.value + quantity)
+        self.updated_at = datetime.now(UTC)
