@@ -1,3 +1,4 @@
+from sqlalchemy import select, update
 from sqlalchemy.orm import Session
 
 from app.domain.product.value_objects.product_id import ProductId
@@ -15,11 +16,11 @@ class StockRepository(IStockRepository):
         self.db = db
 
     def save(self, stock: Stock) -> None:
-        model = self.db.query(StockModel).filter(
-            StockModel.id == stock.id.value,
-        ).first()
+        exists = self.db.scalar(
+            select(StockModel.id).where(StockModel.id == stock.id.value)
+        )
 
-        if model is None:
+        if exists is None:
             model = StockModel(
                 id=stock.id.value,
                 product_id=stock.product_id.value,
@@ -29,15 +30,23 @@ class StockRepository(IStockRepository):
             )
             self.db.add(model)
         else:
-            model.quantity = stock.quantity.value
-            model.updated_at = stock.updated_at
+            stmt = (
+                update(StockModel)
+                .where(StockModel.id == stock.id.value)
+                .values(
+                    quantity=stock.quantity.value,
+                    updated_at=stock.updated_at,
+                )
+            )
+            self.db.execute(stmt)
 
         self.db.flush()
 
     def find_by_product_id(self, product_id: ProductId) -> Stock | None:
-        model = self.db.query(StockModel).filter(
+        stmt = select(StockModel).where(
             StockModel.product_id == product_id.value,
-        ).first()
+        )
+        model = self.db.scalars(stmt).first()
 
         if model is None:
             return None

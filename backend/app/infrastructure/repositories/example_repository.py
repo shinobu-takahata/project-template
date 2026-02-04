@@ -1,3 +1,4 @@
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.domain.example import Example
@@ -13,14 +14,16 @@ class ExampleRepository(IExampleRepository):
 
     def find_by_id(self, example_id: int) -> Example | None:
         """IDでエンティティを取得"""
-        model = self.db.query(ExampleModel).filter(ExampleModel.id == example_id).first()
+        stmt = select(ExampleModel).where(ExampleModel.id == example_id)
+        model = self.db.scalars(stmt).first()
         if model is None:
             return None
         return self._to_entity(model)
 
     def find_all(self) -> list[Example]:
         """全エンティティを取得"""
-        models = self.db.query(ExampleModel).all()
+        stmt = select(ExampleModel)
+        models = self.db.scalars(stmt).all()
         return [self._to_entity(m) for m in models]
 
     def save(self, example: Example) -> Example:

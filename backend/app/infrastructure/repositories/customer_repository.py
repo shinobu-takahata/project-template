@@ -1,3 +1,4 @@
+from sqlalchemy import delete, select, update
 from sqlalchemy.orm import Session
 
 from app.domain.customer.entities.customer import Customer
@@ -18,11 +19,10 @@ class CustomerRepository(ICustomerRepository):
         self.db = db
 
     def find_by_id(self, customer_id: CustomerId) -> Customer | None:
-        model = (
-            self.db.query(CustomerModel)
-            .filter(CustomerModel.id == customer_id.value)
-            .first()
+        stmt = select(CustomerModel).where(
+            CustomerModel.id == customer_id.value
         )
+        model = self.db.scalars(stmt).first()
 
         if model is None:
             return None
@@ -30,11 +30,10 @@ class CustomerRepository(ICustomerRepository):
         return self._to_entity(model)
 
     def find_by_email(self, email: EmailAddress) -> Customer | None:
-        model = (
-            self.db.query(CustomerModel)
-            .filter(CustomerModel.email == email.value)
-            .first()
+        stmt = select(CustomerModel).where(
+            CustomerModel.email == email.value
         )
+        model = self.db.scalars(stmt).first()
 
         if model is None:
             return None
@@ -42,13 +41,13 @@ class CustomerRepository(ICustomerRepository):
         return self._to_entity(model)
 
     def save(self, customer: Customer) -> None:
-        model = (
-            self.db.query(CustomerModel)
-            .filter(CustomerModel.id == customer.id.value)
-            .first()
+        exists = self.db.scalar(
+            select(CustomerModel.id).where(
+                CustomerModel.id == customer.id.value
+            )
         )
 
-        if model is None:
+        if exists is None:
             model = CustomerModel(
                 id=customer.id.value,
                 name=customer.name.value,
@@ -59,15 +58,23 @@ class CustomerRepository(ICustomerRepository):
             )
             self.db.add(model)
         else:
-            model.name = customer.name.value
-            model.email = customer.email.value
-            model.member_rank = customer.member_rank.value
-            model.updated_at = customer.updated_at
+            stmt = (
+                update(CustomerModel)
+                .where(CustomerModel.id == customer.id.value)
+                .values(
+                    name=customer.name.value,
+                    email=customer.email.value,
+                    member_rank=customer.member_rank.value,
+                    updated_at=customer.updated_at,
+                )
+            )
+            self.db.execute(stmt)
 
         # 既存の配送先住所を削除して再作成
-        self.db.query(ShippingAddressModel).filter(
+        delete_stmt = delete(ShippingAddressModel).where(
             ShippingAddressModel.customer_id == customer.id.value
-        ).delete()
+        )
+        self.db.execute(delete_stmt)
 
         for addr in customer.shipping_addresses:
             addr_model = ShippingAddressModel(

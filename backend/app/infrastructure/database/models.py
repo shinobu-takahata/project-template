@@ -1,9 +1,7 @@
 from datetime import UTC, datetime
 
 from sqlalchemy import (
-    Boolean,
     CheckConstraint,
-    Column,
     DateTime,
     ForeignKey,
     Index,
@@ -11,7 +9,7 @@ from sqlalchemy import (
     String,
     Text,
 )
-from sqlalchemy.orm import relationship
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
 
@@ -24,26 +22,32 @@ def utc_now():
 class ExampleModel(Base):
     __tablename__ = "examples"
 
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=utc_now, nullable=False)
-    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    description: Mapped[str | None] = mapped_column(Text, default=None)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=utc_now)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, default=utc_now, onupdate=utc_now
+    )
 
 
 class ProductModel(Base):
     __tablename__ = "products"
 
-    id = Column(String(36), primary_key=True)
-    name = Column(String(200), nullable=False)
-    sku = Column(String(50), nullable=False, unique=True)
-    price = Column(Integer, nullable=False)
-    category = Column(String(100), nullable=False)
-    description = Column(Text, nullable=True)
-    deleted_at = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
-    updated_at = Column(
-        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(200))
+    sku: Mapped[str] = mapped_column(String(50), unique=True)
+    price: Mapped[int] = mapped_column(Integer)
+    category: Mapped[str] = mapped_column(String(100))
+    description: Mapped[str | None] = mapped_column(Text, default=None)
+    deleted_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True), default=None
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
 
     __table_args__ = (
@@ -57,12 +61,14 @@ class ProductModel(Base):
 class StockModel(Base):
     __tablename__ = "stocks"
 
-    id = Column(String(36), primary_key=True)
-    product_id = Column(String(36), nullable=False, unique=True)
-    quantity = Column(Integer, nullable=False, default=0)
-    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
-    updated_at = Column(
-        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    product_id: Mapped[str] = mapped_column(String(36), unique=True)
+    quantity: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
 
     __table_args__ = (
@@ -74,17 +80,18 @@ class StockModel(Base):
 class CustomerModel(Base):
     __tablename__ = "customers"
 
-    id = Column(String(36), primary_key=True)
-    name = Column(String(100), nullable=False)
-    email = Column(String(255), nullable=False, unique=True)
-    member_rank = Column(String(20), nullable=False, default="BRONZE")
-    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
-    updated_at = Column(
-        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    name: Mapped[str] = mapped_column(String(100))
+    email: Mapped[str] = mapped_column(String(255), unique=True)
+    member_rank: Mapped[str] = mapped_column(String(20), default="BRONZE")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
 
-    shipping_addresses = relationship(
-        "ShippingAddressModel",
+    shipping_addresses: Mapped[list["ShippingAddressModel"]] = relationship(
         back_populates="customer",
         cascade="all, delete-orphan",
         lazy="joined",
@@ -102,22 +109,26 @@ class CustomerModel(Base):
 class ShippingAddressModel(Base):
     __tablename__ = "shipping_addresses"
 
-    id = Column(String(36), primary_key=True)
-    customer_id = Column(
-        String(36), ForeignKey("customers.id"), nullable=False
+    id: Mapped[str] = mapped_column(String(36), primary_key=True)
+    customer_id: Mapped[str] = mapped_column(
+        String(36), ForeignKey("customers.id")
     )
-    label = Column(String(50), nullable=False)
-    postal_code = Column(String(10), nullable=False)
-    prefecture = Column(String(10), nullable=False)
-    city = Column(String(100), nullable=False)
-    street = Column(String(200), nullable=False)
-    is_default = Column(Boolean, nullable=False, default=False)
-    created_at = Column(DateTime(timezone=True), default=utc_now, nullable=False)
-    updated_at = Column(
-        DateTime(timezone=True), default=utc_now, onupdate=utc_now, nullable=False
+    label: Mapped[str] = mapped_column(String(50))
+    postal_code: Mapped[str] = mapped_column(String(10))
+    prefecture: Mapped[str] = mapped_column(String(10))
+    city: Mapped[str] = mapped_column(String(100))
+    street: Mapped[str] = mapped_column(String(200))
+    is_default: Mapped[bool] = mapped_column(default=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), default=utc_now, onupdate=utc_now
     )
 
-    customer = relationship("CustomerModel", back_populates="shipping_addresses")
+    customer: Mapped["CustomerModel"] = relationship(
+        back_populates="shipping_addresses"
+    )
 
     __table_args__ = (
         Index("idx_shipping_addresses_customer_id", "customer_id"),

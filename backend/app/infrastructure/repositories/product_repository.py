@@ -1,3 +1,4 @@
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.domain.product.entities.product import Product
@@ -16,10 +17,11 @@ class ProductRepository(IProductRepository):
         self.db = db
 
     def find_by_id(self, product_id: ProductId) -> Product | None:
-        model = self.db.query(ProductModel).filter(
+        stmt = select(ProductModel).where(
             ProductModel.id == product_id.value,
             ProductModel.deleted_at.is_(None),
-        ).first()
+        )
+        model = self.db.scalars(stmt).first()
 
         if model is None:
             return None
@@ -27,10 +29,11 @@ class ProductRepository(IProductRepository):
         return self._to_entity(model)
 
     def find_by_sku(self, sku: SKU) -> Product | None:
-        model = self.db.query(ProductModel).filter(
+        stmt = select(ProductModel).where(
             ProductModel.sku == sku.value,
             ProductModel.deleted_at.is_(None),
-        ).first()
+        )
+        model = self.db.scalars(stmt).first()
 
         if model is None:
             return None
@@ -43,27 +46,29 @@ class ProductRepository(IProductRepository):
         page: int = 1,
         per_page: int = 20,
     ) -> tuple[list[Product], int]:
-        query = self.db.query(ProductModel).filter(
+        stmt = select(ProductModel).where(
             ProductModel.deleted_at.is_(None),
         )
 
         if category:
-            query = query.filter(ProductModel.category == category)
+            stmt = stmt.where(ProductModel.category == category)
 
-        total = query.count()
+        count_stmt = select(func.count()).select_from(stmt.subquery())
+        total = self.db.scalar(count_stmt) or 0
 
         offset = (page - 1) * per_page
-        models = query.offset(offset).limit(per_page).all()
+        stmt = stmt.offset(offset).limit(per_page)
+        models = self.db.scalars(stmt).all()
 
         products = [self._to_entity(m) for m in models]
         return products, total
 
     def save(self, product: Product) -> None:
-        model = self.db.query(ProductModel).filter(
-            ProductModel.id == product.id.value,
-        ).first()
+        exists = self.db.scalar(
+            select(ProductModel.id).where(ProductModel.id == product.id.value)
+        )
 
-        if model is None:
+        if exists is None:
             model = ProductModel(
                 id=product.id.value,
                 name=product.name.value,
@@ -77,12 +82,19 @@ class ProductRepository(IProductRepository):
             )
             self.db.add(model)
         else:
-            model.name = product.name.value
-            model.price = product.price.value
-            model.category = product.category
-            model.description = product.description
-            model.deleted_at = product.deleted_at
-            model.updated_at = product.updated_at
+            stmt = (
+                update(ProductModel)
+                .where(ProductModel.id == product.id.value)
+                .values(
+                    name=product.name.value,
+                    price=product.price.value,
+                    category=product.category,
+                    description=product.description,
+                    deleted_at=product.deleted_at,
+                    updated_at=product.updated_at,
+                )
+            )
+            self.db.execute(stmt)
 
         self.db.flush()
 
