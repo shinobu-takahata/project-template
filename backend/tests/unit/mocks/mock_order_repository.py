@@ -10,3 +10,13 @@ class MockOrderRepository(IOrderRepository):
 
     def exists_active_order_with_product(self, product_id: ProductId) -> bool:
         return product_id.value in self.active_product_ids
+
+    def find_by_customer_id(
+        self,
+        customer_id: str,
+        status: str | None = None,
+        page: int = 1,
+        per_page: int = 20,
+    ) -> tuple[list[dict], int]:
+        # スタブ実装: 空のリストを返す
+        return [], 0

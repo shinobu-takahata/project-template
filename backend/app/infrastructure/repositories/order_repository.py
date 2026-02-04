@@ -16,3 +16,13 @@ class OrderRepository(IOrderRepository):
     def exists_active_order_with_product(self, product_id: ProductId) -> bool:
         # スタブ実装: 常にFalseを返す（削除を許可）
         return False
+
+    def find_by_customer_id(
+        self,
+        customer_id: str,
+        status: str | None = None,
+        page: int = 1,
+        per_page: int = 20,
+    ) -> tuple[list[dict], int]:
+        # スタブ実装: 空のリストを返す（注文エンドポイント実装時に完成させる）
+        return [], 0
