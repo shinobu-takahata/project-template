@@ -1,10 +1,10 @@
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 
+from app.domain.product.value_objects.price import Price
 from app.domain.product.value_objects.product_id import ProductId
 from app.domain.product.value_objects.product_name import ProductName
 from app.domain.product.value_objects.sku import SKU
-from app.domain.product.value_objects.price import Price
 
 
 @dataclass
