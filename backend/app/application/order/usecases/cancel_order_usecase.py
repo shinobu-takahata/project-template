@@ -39,14 +39,18 @@ class CancelOrderUseCase:
             raise OrderCannotBeCancelledError(str(e))
 
         # 在庫を戻す
-        for item in order.items:
-            stock = self.stock_repository.find_by_product_id(item.product_id)
-            if stock is not None:
-                stock.release(item.quantity)
-                self.stock_repository.save(stock)
+        try:
+            for item in order.items:
+                stock = self.stock_repository.find_by_product_id(item.product_id)
+                if stock is not None:
+                    stock.release(item.quantity)
+                    self.stock_repository.save(stock)
 
-        self.order_repository.save(order)
-        self.db.commit()
+            self.order_repository.save(order)
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            raise e
 
         return OrderCancelDTO(
             order_id=order.id.value,

@@ -36,8 +36,12 @@ class UpdateOrderStatusUseCase:
         except DomainInvalidStatusTransitionError as e:
             raise InvalidStatusTransitionError(str(e))
 
-        self.order_repository.save(order)
-        self.db.commit()
+        try:
+            self.order_repository.save(order)
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            raise e
 
         return OrderStatusUpdateDTO(
             order_id=order.id.value,

@@ -105,9 +105,13 @@ class CreateOrderUseCase:
         )
 
         # 永続化
-        self.order_repository.save(order)
-        for stock in stocks:
-            self.stock_repository.save(stock)
-        self.db.commit()
+        try:
+            self.order_repository.save(order)
+            for stock in stocks:
+                self.stock_repository.save(stock)
+            self.db.commit()
+        except Exception as e:
+            self.db.rollback()
+            raise e
 
         return OrderDTO.from_entity(order)
