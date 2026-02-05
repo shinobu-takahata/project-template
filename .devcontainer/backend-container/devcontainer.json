@@ -12,7 +12,8 @@
         "ms-python.vscode-pylance",
         "charliermarsh.ruff",
         "ms-python.debugpy",
-        "anthropic.claude-code"
+        "anthropic.claude-code",
+        "cweijan.vscode-database-client2"
       ],
       "settings": {
         "python.defaultInterpreterPath": "/app/.venv/bin/python",
