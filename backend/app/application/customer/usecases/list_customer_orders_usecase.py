@@ -32,7 +32,7 @@ class ListCustomerOrdersUseCase:
 
         # 注文一覧を取得（スタブ実装なので空リスト）
         orders, total = self.order_repository.find_by_customer_id(
-            customer_id, status, page, per_page
+            CustomerId(customer_id), status, page, per_page
         )
 
         order_dtos: list[OrderSummaryDTO] = []

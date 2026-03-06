@@ -19,6 +19,11 @@ class ICustomerRepository(ABC):
         pass
 
     @abstractmethod
+    def find_all(self) -> list[Customer]:
+        """全顧客を取得する"""
+        pass
+
+    @abstractmethod
     def save(self, customer: Customer) -> None:
         """顧客を保存する（作成・更新）"""
         pass

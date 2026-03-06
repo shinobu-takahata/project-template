@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session
 from app.application.customer.dtos.customer_dto import (
     AddShippingAddressInputDTO,
     RegisterCustomerInputDTO,
+    ShippingAddressDTO,
     UpdateCustomerInputDTO,
 )
 from app.application.customer.exceptions import (
@@ -19,6 +20,9 @@ from app.application.customer.usecases.get_customer_usecase import (
 from app.application.customer.usecases.list_customer_orders_usecase import (
     ListCustomerOrdersUseCase,
 )
+from app.application.customer.usecases.list_customers_usecase import (
+    ListCustomersUseCase,
+)
 from app.application.customer.usecases.register_customer_usecase import (
     RegisterCustomerUseCase,
 )
@@ -29,6 +33,7 @@ from app.core.database import get_db
 from app.infrastructure.repositories.customer_repository import CustomerRepository
 from app.infrastructure.repositories.order_repository import OrderRepository
 from app.schemas.customer import (
+    AddressResponse,
     CustomerOrderListResponse,
     CustomerRegisterRequest,
     CustomerResponse,
@@ -42,6 +47,40 @@ from app.schemas.customer import (
 router = APIRouter()
 
 
+def _to_address_response(dto: ShippingAddressDTO) -> ShippingAddressResponse:
+    return ShippingAddressResponse(
+        id=dto.address_id,
+        label=dto.label,
+        address=AddressResponse(
+            postal_code=dto.postal_code,
+            prefecture=dto.prefecture,
+            city=dto.city,
+            street=dto.street,
+        ),
+        is_default=dto.is_default,
+    )
+
+
+def _to_customer_response(dto) -> CustomerResponse:
+    return CustomerResponse(
+        id=dto.customer_id,
+        name=dto.name,
+        email=dto.email,
+        member_rank=dto.member_rank,
+        shipping_addresses=[_to_address_response(addr) for addr in dto.shipping_addresses],
+        created_at=dto.created_at,
+    )
+
+
+@router.get("", response_model=list[CustomerResponse])
+def list_customers(db: Session = Depends(get_db)):
+    """顧客一覧取得"""
+    customer_repository = CustomerRepository(db)
+    usecase = ListCustomersUseCase(customer_repository)
+    customer_dtos = usecase.execute()
+    return [_to_customer_response(dto) for dto in customer_dtos]
+
+
 @router.get("/{customer_id}", response_model=CustomerResponse)
 def get_customer(
     customer_id: str,
@@ -52,27 +91,12 @@ def get_customer(
     usecase = GetCustomerUseCase(customer_repository)
 
     try:
-        customer_dto = usecase.execute(customer_id)
-        return CustomerResponse(
-            customer_id=customer_dto.customer_id,
-            name=customer_dto.name,
-            email=customer_dto.email,
-            member_rank=customer_dto.member_rank,
-            shipping_addresses=[
-                ShippingAddressResponse(**addr.__dict__)
-                for addr in customer_dto.shipping_addresses
-            ],
-            created_at=customer_dto.created_at,
-        )
+        return _to_customer_response(usecase.execute(customer_id))
     except CustomerNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
 
 
-@router.post(
-    "/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED
-)
+@router.post("/", response_model=CustomerResponse, status_code=status.HTTP_201_CREATED)
 def register_customer(
     request: CustomerRegisterRequest,
     db: Session = Depends(get_db),
@@ -94,26 +118,11 @@ def register_customer(
     )
 
     try:
-        customer_dto = usecase.execute(input_dto)
-        return CustomerResponse(
-            customer_id=customer_dto.customer_id,
-            name=customer_dto.name,
-            email=customer_dto.email,
-            member_rank=customer_dto.member_rank,
-            shipping_addresses=[
-                ShippingAddressResponse(**addr.__dict__)
-                for addr in customer_dto.shipping_addresses
-            ],
-            created_at=customer_dto.created_at,
-        )
+        return _to_customer_response(usecase.execute(input_dto))
     except DuplicateEmailError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.put("/{customer_id}", response_model=CustomerResponse)
@@ -132,30 +141,13 @@ def update_customer(
     )
 
     try:
-        customer_dto = usecase.execute(customer_id, input_dto)
-        return CustomerResponse(
-            customer_id=customer_dto.customer_id,
-            name=customer_dto.name,
-            email=customer_dto.email,
-            member_rank=customer_dto.member_rank,
-            shipping_addresses=[
-                ShippingAddressResponse(**addr.__dict__)
-                for addr in customer_dto.shipping_addresses
-            ],
-            created_at=customer_dto.created_at,
-        )
+        return _to_customer_response(usecase.execute(customer_id, input_dto))
     except CustomerNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except DuplicateEmailError as e:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
 @router.post(
@@ -183,20 +175,14 @@ def add_shipping_address(
 
     try:
         address_dto = usecase.execute(customer_id, input_dto)
-        return ShippingAddressResponse(**address_dto.__dict__)
+        return _to_address_response(address_dto)
     except CustomerNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))
     except ValueError as e:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
 
 
-@router.get(
-    "/{customer_id}/orders", response_model=CustomerOrderListResponse
-)
+@router.get("/{customer_id}/orders", response_model=CustomerOrderListResponse)
 def list_customer_orders(
     customer_id: str,
     order_status: str | None = Query(None, alias="status"),
@@ -210,17 +196,11 @@ def list_customer_orders(
     usecase = ListCustomerOrdersUseCase(customer_repository, order_repository)
 
     try:
-        order_dtos, pagination_dto = usecase.execute(
-            customer_id, order_status, page, per_page
-        )
+        order_dtos, pagination_dto = usecase.execute(customer_id, order_status, page, per_page)
 
         return CustomerOrderListResponse(
-            data=[
-                OrderSummaryResponse(**dto.__dict__) for dto in order_dtos
-            ],
+            data=[OrderSummaryResponse(**dto.__dict__) for dto in order_dtos],
             pagination=PaginationResponse(**pagination_dto.__dict__),
         )
     except CustomerNotFoundError as e:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND, detail=str(e)
-        )
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(e))

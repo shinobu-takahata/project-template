@@ -1,6 +1,7 @@
 from datetime import datetime
 
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, ConfigDict, EmailStr, Field
+from pydantic.alias_generators import to_camel
 
 
 class ShippingAddressRequest(BaseModel):
@@ -39,22 +40,43 @@ class ShippingAddressAddRequest(BaseModel):
     is_default: bool = False
 
 
-class ShippingAddressResponse(BaseModel):
-    """配送先住所レスポンス"""
+class AddressResponse(BaseModel):
+    """住所レスポンス"""
 
-    address_id: str
-    label: str
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
     postal_code: str
     prefecture: str
     city: str
     street: str
+
+
+class ShippingAddressResponse(BaseModel):
+    """配送先住所レスポンス"""
+
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    id: str
+    label: str
+    address: AddressResponse
     is_default: bool
 
 
 class CustomerResponse(BaseModel):
     """顧客レスポンス"""
 
-    customer_id: str
+    model_config = ConfigDict(
+        alias_generator=to_camel,
+        populate_by_name=True,
+    )
+
+    id: str
     name: str
     email: str
     member_rank: str

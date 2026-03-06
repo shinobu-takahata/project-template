@@ -58,6 +58,20 @@ class CustomerRepository(ICustomerRepository):
 
         return self._to_entity(model)
 
+    def find_all(self) -> list[Customer]:
+        stmt = (
+            select(CustomerModel)
+            .options(
+                load_only(*self._CUSTOMER_COLUMNS),
+                selectinload(CustomerModel.shipping_addresses).load_only(
+                    *self._SHIPPING_ADDRESS_COLUMNS
+                ),
+            )
+            .order_by(CustomerModel.created_at.desc())
+        )
+        models = self.db.scalars(stmt).all()
+        return [self._to_entity(m) for m in models]
+
     def find_by_email(self, email: EmailAddress) -> Customer | None:
         stmt = (
             select(CustomerModel)
