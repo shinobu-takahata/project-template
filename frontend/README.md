@@ -2,15 +2,58 @@
 
 ## 目次
 
-1. [ディレクトリ構造](#1-ディレクトリ構造)
-2. [実装方針](#2-実装方針)
-3. [ライブラリの使い方](#3-ライブラリの使い方)
-4. [テストの方針](#4-テストの方針)
-5. [テストの書き方](#5-テストの書き方)
+1. [ライブラリ一覧](#1-ライブラリ一覧)
+2. [ディレクトリ構造](#2-ディレクトリ構造)
+3. [実装方針](#3-実装方針)
+4. [ライブラリの使い方](#4-ライブラリの使い方)
+5. [テストの方針](#5-テストの方針)
+6. [テストの書き方](#6-テストの書き方)
 
 ---
 
-## 1. ディレクトリ構造
+## 1. ライブラリ一覧
+
+### フレームワーク・コアライブラリ
+
+| ライブラリ | バージョン | 用途 |
+|---|---|---|
+| [Next.js](https://nextjs.org/) | 16.x | React フレームワーク。App Router によるファイルベースルーティング、Server Component、Server Action を提供する |
+| [React](https://react.dev/) | 19.x | UI コンポーネントライブラリ。`useActionState` など最新の React API を使用する |
+
+### フォーム・バリデーション
+
+| ライブラリ | バージョン | 用途 |
+|---|---|---|
+| [Zod](https://zod.dev/) | 4.x | スキーマ定義とバリデーション。サーバー・クライアント両側で共有する |
+| [@conform-to/react](https://conform.guide/) | 1.x | `useActionState` と連携するフォーム状態管理。フィールドの ID・名前・エラーを管理する |
+| [@conform-to/zod](https://conform.guide/api/zod) | 1.x | conform と Zod を連携させるアダプター。`parseWithZod()` でフォームデータをパースする |
+
+### UI・スタイリング
+
+| ライブラリ | バージョン | 用途 |
+|---|---|---|
+| [Tailwind CSS](https://tailwindcss.com/) | 4.x | ユーティリティファーストの CSS フレームワーク |
+| [shadcn/ui](https://ui.shadcn.com/) | 3.x | Tailwind CSS ベースのコンポーネント集。`npx shadcn add` で `components/ui/` に追加し、直接編集してカスタマイズする |
+| [Lucide React](https://lucide.dev/) | 0.5x | SVG アイコンライブラリ |
+
+### サーバーサイド
+
+| ライブラリ | バージョン | 用途 |
+|---|---|---|
+| [server-only](https://www.npmjs.com/package/server-only) | 0.0.1 | `import "server-only"` を記述したファイルを Client Component から import するとビルドエラーにする。`fetcher.ts` などの誤用を防ぐ |
+
+### テスト
+
+| ライブラリ | バージョン | 用途 |
+|---|---|---|
+| [Jest](https://jestjs.io/) | 29.x | JavaScript テストフレームワーク |
+| [@testing-library/react](https://testing-library.com/docs/react-testing-library/intro/) | 16.x | React コンポーネントのレンダリングとクエリを提供するテストユーティリティ |
+| [@testing-library/user-event](https://testing-library.com/docs/user-event/intro/) | 14.x | クリック・入力などのユーザー操作をシミュレートするユーティリティ |
+| [@testing-library/jest-dom](https://github.com/testing-library/jest-dom) | 6.x | `toBeInTheDocument()` などの DOM 検証用カスタムマッチャーを提供する |
+
+---
+
+## 2. ディレクトリ構造
 
 ### 抽象構造（テンプレート）
 
@@ -150,7 +193,7 @@ Next.js App Router の `_` プレフィックスディレクトリはルーテ�
 
 ---
 
-## 2. 実装方針
+## 3. 実装方針
 
 ### Server Component vs Client Component の分離基準
 
@@ -254,7 +297,7 @@ Client Component からの誤った import をビルド時にエラーにする�
 
 ---
 
-## 3. ライブラリの使い方
+## 4. ライブラリの使い方
 
 ### Next.js App Router
 
@@ -269,13 +312,20 @@ Client Component からの誤った import をビルド時にエラーにする�
 | `not-found.tsx` | 404 UI（`notFound()` 関数で表示） |
 
 ```tsx
-// page.tsx での Suspense 使用例
-export default function CustomerDetailPage({ params }: { params: { customerId: string } }) {
+// page.tsx での params 受け取り例
+// Next.js 15 以降、動的ルート（app/posts/[id]/page.tsxみたいなやつ）の params は Promise 型になった。必ず await する。
+export default async function CustomerDetailPage({
+  params,
+}: {
+  params: Promise<{ customerId: string }>;
+}) {
+  const { customerId } = await params;
+
   return (
     <div>
-      <CustomerProfileContainer customerId={params.customerId} />
+      <CustomerProfileContainer customerId={customerId} />
       <Suspense fallback={<OrderHistorySkeleton />}>
-        <OrderHistoryContainer customerId={params.customerId} />
+        <OrderHistoryContainer customerId={customerId} />
       </Suspense>
     </div>
   );
@@ -285,6 +335,7 @@ export default function CustomerDetailPage({ params }: { params: { customerId: s
 ### @conform-to/react + Zod v4
 
 フォーム状態管理は `useActionState` + `useForm` の組み合わせで行う。
+useActionStateは、フォームアクションの結果に基づいてステートを更新するためのフックである。
 
 ```tsx
 "use client";
@@ -395,9 +446,8 @@ import { Badge } from "@/components/ui/badge";
 <Badge variant="destructive">キャンセル済</Badge>
 ```
 
----
 
-## 4. テストの方針
+## 5. テストの方針
 
 ### テストフェーズと対象
 
@@ -444,7 +494,7 @@ expect(screen.getByLabelText("名前")).toHaveAttribute("aria-invalid", "true");
 
 ---
 
-## 5. テストの書き方
+## 6. テストの書き方
 
 ### セットアップ
 
