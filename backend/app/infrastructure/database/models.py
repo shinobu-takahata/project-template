@@ -1,20 +1,21 @@
-from datetime import UTC, datetime
+from app.infrastructure.database.customer_model import (  # noqa: F401
+    CustomerModel,
+    ShippingAddressModel,
+)
+from app.infrastructure.database.example_model import ExampleModel  # noqa: F401
+from app.infrastructure.database.order_model import (  # noqa: F401
+    OrderItemModel,
+    OrderModel,
+)
+from app.infrastructure.database.product_model import ProductModel  # noqa: F401
+from app.infrastructure.database.stock_model import StockModel  # noqa: F401
 
-from sqlalchemy import Column, DateTime, Integer, String, Text
-
-from app.core.database import Base
-
-
-def utc_now():
-    """UTC現在時刻を返す"""
-    return datetime.now(UTC)
-
-
-class ExampleModel(Base):
-    __tablename__ = "examples"
-
-    id = Column(Integer, primary_key=True, index=True)
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    created_at = Column(DateTime, default=utc_now, nullable=False)
-    updated_at = Column(DateTime, default=utc_now, onupdate=utc_now, nullable=False)
+__all__ = [
+    "ExampleModel",
+    "ProductModel",
+    "StockModel",
+    "CustomerModel",
+    "ShippingAddressModel",
+    "OrderModel",
+    "OrderItemModel",
+]

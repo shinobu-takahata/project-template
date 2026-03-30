@@ -1,0 +1,172 @@
+from sqlalchemy import delete, select, update
+from sqlalchemy.orm import Session, load_only, selectinload
+
+from app.domain.customer.entities.customer import Customer
+from app.domain.customer.entities.shipping_address import ShippingAddress
+from app.domain.customer.repositories.customer_repository import ICustomerRepository
+from app.domain.customer.value_objects.address import Address
+from app.domain.customer.value_objects.customer_id import CustomerId
+from app.domain.customer.value_objects.customer_name import CustomerName
+from app.domain.customer.value_objects.email_address import EmailAddress
+from app.domain.customer.value_objects.member_rank import MemberRank
+from app.infrastructure.database.models import CustomerModel, ShippingAddressModel
+
+
+class CustomerRepository(ICustomerRepository):
+    """顧客リポジトリ実装"""
+
+    _CUSTOMER_COLUMNS = (
+        CustomerModel.id,
+        CustomerModel.name,
+        CustomerModel.email,
+        CustomerModel.member_rank,
+        CustomerModel.created_at,
+        CustomerModel.updated_at,
+    )
+
+    _SHIPPING_ADDRESS_COLUMNS = (
+        ShippingAddressModel.id,
+        ShippingAddressModel.customer_id,
+        ShippingAddressModel.label,
+        ShippingAddressModel.postal_code,
+        ShippingAddressModel.prefecture,
+        ShippingAddressModel.city,
+        ShippingAddressModel.street,
+        ShippingAddressModel.is_default,
+        ShippingAddressModel.created_at,
+        ShippingAddressModel.updated_at,
+    )
+
+    def __init__(self, db: Session):
+        self.db = db
+
+    def find_by_id(self, customer_id: CustomerId) -> Customer | None:
+        stmt = (
+            select(CustomerModel)
+            .options(
+                load_only(*self._CUSTOMER_COLUMNS),
+                selectinload(CustomerModel.shipping_addresses).load_only(
+                    *self._SHIPPING_ADDRESS_COLUMNS
+                ),
+            )
+            .where(CustomerModel.id == customer_id.value)
+        )
+        model = self.db.scalars(stmt).first()
+
+        if model is None:
+            return None
+
+        return self._to_entity(model)
+
+    def find_all(self) -> list[Customer]:
+        stmt = (
+            select(CustomerModel)
+            .options(
+                load_only(*self._CUSTOMER_COLUMNS),
+                selectinload(CustomerModel.shipping_addresses).load_only(
+                    *self._SHIPPING_ADDRESS_COLUMNS
+                ),
+            )
+            .order_by(CustomerModel.created_at.desc())
+        )
+        models = self.db.scalars(stmt).all()
+        return [self._to_entity(m) for m in models]
+
+    def find_by_email(self, email: EmailAddress) -> Customer | None:
+        stmt = (
+            select(CustomerModel)
+            .options(
+                load_only(*self._CUSTOMER_COLUMNS),
+                selectinload(CustomerModel.shipping_addresses).load_only(
+                    *self._SHIPPING_ADDRESS_COLUMNS
+                ),
+            )
+            .where(CustomerModel.email == email.value)
+        )
+        model = self.db.scalars(stmt).first()
+
+        if model is None:
+            return None
+
+        return self._to_entity(model)
+
+    def save(self, customer: Customer) -> None:
+        exists = self.db.scalar(
+            select(CustomerModel.id).where(
+                CustomerModel.id == customer.id.value
+            )
+        )
+
+        if exists is None:
+            model = CustomerModel(
+                id=customer.id.value,
+                name=customer.name.value,
+                email=customer.email.value,
+                member_rank=customer.member_rank.value,
+                created_at=customer.created_at,
+                updated_at=customer.updated_at,
+            )
+            self.db.add(model)
+        else:
+            stmt = (
+                update(CustomerModel)
+                .where(CustomerModel.id == customer.id.value)
+                .values(
+                    name=customer.name.value,
+                    email=customer.email.value,
+                    member_rank=customer.member_rank.value,
+                    updated_at=customer.updated_at,
+                )
+            )
+            self.db.execute(stmt)
+
+        # 既存の配送先住所を削除して再作成
+        delete_stmt = delete(ShippingAddressModel).where(
+            ShippingAddressModel.customer_id == customer.id.value
+        )
+        self.db.execute(delete_stmt)
+
+        for addr in customer.shipping_addresses:
+            addr_model = ShippingAddressModel(
+                id=addr.id,
+                customer_id=customer.id.value,
+                label=addr.label,
+                postal_code=addr.address.postal_code,
+                prefecture=addr.address.prefecture,
+                city=addr.address.city,
+                street=addr.address.street,
+                is_default=addr.is_default,
+                created_at=addr.created_at,
+                updated_at=addr.updated_at,
+            )
+            self.db.add(addr_model)
+
+        self.db.flush()
+
+    def _to_entity(self, model: CustomerModel) -> Customer:
+        shipping_addresses = [
+            ShippingAddress(
+                id=addr.id,
+                label=addr.label,
+                address=Address(
+                    postal_code=addr.postal_code,
+                    prefecture=addr.prefecture,
+                    city=addr.city,
+                    street=addr.street,
+                ),
+                is_default=addr.is_default,
+                created_at=addr.created_at,
+                updated_at=addr.updated_at,
+            )
+            for addr in model.shipping_addresses
+        ]
+
+        return Customer(
+            id=CustomerId(model.id),
+            name=CustomerName(model.name),
+            email=EmailAddress(model.email),
+            member_rank=MemberRank(model.member_rank),
+            shipping_addresses=shipping_addresses,
+            created_at=model.created_at,
+            updated_at=model.updated_at,
+        )

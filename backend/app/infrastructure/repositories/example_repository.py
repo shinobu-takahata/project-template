@@ -1,4 +1,5 @@
-from sqlalchemy.orm import Session
+from sqlalchemy import select
+from sqlalchemy.orm import Session, load_only
 
 from app.domain.example import Example
 from app.domain.repositories.example_repository import IExampleRepository
@@ -8,19 +9,35 @@ from app.infrastructure.database.models import ExampleModel
 class ExampleRepository(IExampleRepository):
     """サンプルリポジトリ"""
 
+    _EXAMPLE_COLUMNS = (
+        ExampleModel.id,
+        ExampleModel.name,
+        ExampleModel.description,
+        ExampleModel.created_at,
+        ExampleModel.updated_at,
+    )
+
     def __init__(self, db: Session):
         self.db = db
 
     def find_by_id(self, example_id: int) -> Example | None:
         """IDでエンティティを取得"""
-        model = self.db.query(ExampleModel).filter(ExampleModel.id == example_id).first()
+        stmt = (
+            select(ExampleModel)
+            .options(load_only(*self._EXAMPLE_COLUMNS))
+            .where(ExampleModel.id == example_id)
+        )
+        model = self.db.scalars(stmt).first()
         if model is None:
             return None
         return self._to_entity(model)
 
     def find_all(self) -> list[Example]:
         """全エンティティを取得"""
-        models = self.db.query(ExampleModel).all()
+        stmt = select(ExampleModel).options(
+            load_only(*self._EXAMPLE_COLUMNS)
+        )
+        models = self.db.scalars(stmt).all()
         return [self._to_entity(m) for m in models]
 
     def save(self, example: Example) -> Example:
