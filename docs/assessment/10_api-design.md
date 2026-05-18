@@ -28,6 +28,10 @@
 
 JWTトークンには `organization_id` を含み、すべてのAPIはログインユーザーの組織データのみを返します。
 
+### システム管理者認証
+
+`/admin/` プレフィックスのエンドポイントはシステム管理者専用です。システム管理者の JWT には `role: "system_admin"` が含まれ、`organization_id` は含まれません。一般ユーザーがアクセスした場合は `403 Forbidden` を返します。
+
 ---
 
 ## 共通レスポンス形式
@@ -946,9 +950,135 @@ JWTトークンには `organization_id` を含み、すべてのAPIはログイ�
 
 ---
 
-## 8. エンドポイント一覧
+## 8. システム管理（Admin）
+
+> **権限**: システム管理者（`role: system_admin`）のみアクセス可能。
+
+### POST `/admin/organizations`
+
+組織を新規登録する（A-01）。
+
+**リクエスト**
+```json
+{
+  "name": "就労移行支援A事業所",
+  "org_type": "employment_support",
+  "contact_email": "info@example.com",
+  "contact_phone": "03-1234-5678",
+  "address": "東京都新宿区西新宿1-1-1"
+}
+```
+
+**レスポンス** `201 Created`
+```json
+{
+  "id": "uuid",
+  "name": "就労移行支援A事業所",
+  "org_type": "employment_support",
+  "contact_email": "info@example.com",
+  "contact_phone": "03-1234-5678",
+  "address": "東京都新宿区西新宿1-1-1",
+  "is_active": true,
+  "created_at": "2026-05-18T00:00:00Z"
+}
+```
+
+**エラー**
+- `409` 同一メールアドレスの組織が既に存在する
+
+---
+
+### GET `/admin/organizations`
+
+全組織の一覧を取得する。
+
+**クエリパラメータ**
+| パラメータ | 型 | 説明 |
+|-----------|-----|------|
+| `org_type` | string | 組織種別でフィルター（`employment_support` / `company`） |
+| `is_active` | boolean | 有効/無効フィルター（省略時: 全件） |
+| `page` | int | ページ番号（デフォルト: 1） |
+| `per_page` | int | 1ページ件数（デフォルト: 20、最大: 100） |
+
+**レスポンス** `200 OK`
+```json
+{
+  "data": [
+    {
+      "id": "uuid",
+      "name": "就労移行支援A事業所",
+      "org_type": "employment_support",
+      "contact_email": "info@example.com",
+      "is_active": true,
+      "created_at": "2026-01-01T00:00:00Z"
+    }
+  ],
+  "pagination": { "total": 5, "page": 1, "per_page": 20 }
+}
+```
+
+---
+
+### GET `/admin/organizations/{org_id}`
+
+指定した組織の詳細を取得する。
+
+**レスポンス** `200 OK`（組織情報の全フィールド）
+
+---
+
+### PUT `/admin/organizations/{org_id}`
+
+指定した組織の情報を更新する。
+
+**リクエスト**
+```json
+{
+  "name": "就労移行支援A事業所（改称後）",
+  "contact_email": "new@example.com",
+  "contact_phone": "03-9999-9999",
+  "address": "東京都渋谷区..."
+}
+```
+
+**レスポンス** `200 OK`（更新後の組織情報）
+
+---
+
+### PATCH `/admin/organizations/{org_id}/status`
+
+組織の有効/無効を切り替える（論理削除）。
+
+**リクエスト**
+```json
+{
+  "is_active": false
+}
+```
+
+**レスポンス** `200 OK`
+```json
+{
+  "id": "uuid",
+  "is_active": false
+}
+```
+
+**エラー**
+- `409` 無効化しようとしている組織に有効な担当者アカウントが残っている
+
+---
+
+## 9. エンドポイント一覧
 
 ```
+# システム管理（admin のみ）
+POST   /admin/organizations
+GET    /admin/organizations
+GET    /admin/organizations/{org_id}
+PUT    /admin/organizations/{org_id}
+PATCH  /admin/organizations/{org_id}/status
+
 # 認証
 POST   /auth/login
 POST   /auth/logout
@@ -1005,7 +1135,7 @@ DELETE /support-manuals/{manual_id}
 
 ---
 
-## 9. ディレクトリ構成（実装時の参考）
+## 10. ディレクトリ構成（実装時の参考）
 
 既存のプロジェクトテンプレートのパターンに従い、以下の構成で実装します。
 
