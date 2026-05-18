@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Plus } from "lucide-react";
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Separator } from "@/components/ui/separator";
@@ -23,11 +23,7 @@ export function ShippingAddressList({
       <CardHeader className="flex flex-row items-center justify-between">
         <CardTitle>配送先住所</CardTitle>
         {!isAdding && addresses.length < 5 && (
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setIsAdding(true)}
-          >
+          <Button variant="outline" size="sm" onClick={() => setIsAdding(true)}>
             <Plus className="mr-1 h-4 w-4" />
             住所を追加
           </Button>
@@ -45,17 +41,11 @@ export function ShippingAddressList({
           </div>
         )}
         {addresses.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            配送先住所が登録されていません。
-          </p>
+          <p className="text-sm text-muted-foreground">配送先住所が登録されていません。</p>
         ) : (
           <div className="grid gap-4">
             {addresses.map((address) => (
-              <ShippingAddressCard
-                key={address.id}
-                customerId={customerId}
-                address={address}
-              />
+              <ShippingAddressCard key={address.id} customerId={customerId} address={address} />
             ))}
           </div>
         )}

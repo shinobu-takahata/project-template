@@ -36,10 +36,7 @@ export function CustomerProfile({ customer }: { customer: Customer }) {
       <Separator />
       <CardContent className="pt-6">
         {isEditing ? (
-          <CustomerEditForm
-            customer={customer}
-            onCancel={() => setIsEditing(false)}
-          />
+          <CustomerEditForm customer={customer} onCancel={() => setIsEditing(false)} />
         ) : (
           <dl className="grid grid-cols-[auto_1fr] gap-x-6 gap-y-3 text-sm">
             <dt className="font-medium text-muted-foreground">名前</dt>

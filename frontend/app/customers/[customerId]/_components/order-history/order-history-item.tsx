@@ -10,10 +10,7 @@ const STATUS_LABELS: Record<OrderStatus, string> = {
   CANCELLED: "キャンセル",
 };
 
-const STATUS_VARIANTS: Record<
-  OrderStatus,
-  "default" | "secondary" | "outline" | "destructive"
-> = {
+const STATUS_VARIANTS: Record<OrderStatus, "default" | "secondary" | "outline" | "destructive"> = {
   CONFIRMED: "secondary",
   PAID: "secondary",
   PREPARING: "default",
@@ -33,12 +30,8 @@ export function OrderHistoryItem({ order }: { order: Order }) {
           <p className="text-xs text-muted-foreground">{createdAt}</p>
         </div>
         <div className="flex items-center gap-3">
-          <Badge variant={STATUS_VARIANTS[order.status]}>
-            {STATUS_LABELS[order.status]}
-          </Badge>
-          <p className="text-sm font-semibold">
-            ¥{order.totalAmount.toLocaleString()}
-          </p>
+          <Badge variant={STATUS_VARIANTS[order.status]}>{STATUS_LABELS[order.status]}</Badge>
+          <p className="text-sm font-semibold">¥{order.totalAmount.toLocaleString()}</p>
         </div>
       </div>
     </div>

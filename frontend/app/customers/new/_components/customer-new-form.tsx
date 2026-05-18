@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
 import { useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
+import { useActionState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -28,11 +28,7 @@ export function CustomerNewForm() {
       <div className="grid gap-4">
         <div className="grid gap-1.5">
           <Label htmlFor={fields.name.id}>名前</Label>
-          <Input
-            id={fields.name.id}
-            name={fields.name.name}
-            aria-invalid={!!fields.name.errors}
-          />
+          <Input id={fields.name.id} name={fields.name.name} aria-invalid={!!fields.name.errors} />
           {fields.name.errors && (
             <p className="text-sm text-destructive">{fields.name.errors[0]}</p>
           )}

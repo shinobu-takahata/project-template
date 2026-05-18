@@ -1,11 +1,11 @@
 export const dynamic = "force-dynamic";
 
-import Link from "next/link";
 import { Plus } from "lucide-react";
-import { apiClient } from "@/lib/api-client";
+import Link from "next/link";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { apiClient } from "@/lib/api-client";
 import type { Customer, MemberRank } from "@/types/customer";
 
 const RANK_LABELS: Record<MemberRank, string> = {
@@ -48,9 +48,7 @@ export default async function CustomersPage() {
                     <p className="font-medium">{customer.name}</p>
                     <p className="text-sm text-muted-foreground">{customer.email}</p>
                   </div>
-                  <Badge variant="outline">
-                    {RANK_LABELS[customer.memberRank]}
-                  </Badge>
+                  <Badge variant="outline">{RANK_LABELS[customer.memberRank]}</Badge>
                 </CardContent>
               </Card>
             </Link>

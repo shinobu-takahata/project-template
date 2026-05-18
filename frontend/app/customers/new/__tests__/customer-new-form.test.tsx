@@ -19,10 +19,7 @@ describe("CustomerNewForm", () => {
 
       await user.click(screen.getByRole("button", { name: "登録" }));
 
-      expect(screen.getByLabelText("名前")).toHaveAttribute(
-        "aria-invalid",
-        "true"
-      );
+      expect(screen.getByLabelText("名前")).toHaveAttribute("aria-invalid", "true");
     });
 
     it("全フィールド未入力で送信すると email フィールドが invalid になる", async () => {
@@ -31,10 +28,7 @@ describe("CustomerNewForm", () => {
 
       await user.click(screen.getByRole("button", { name: "登録" }));
 
-      expect(screen.getByLabelText("メールアドレス")).toHaveAttribute(
-        "aria-invalid",
-        "true"
-      );
+      expect(screen.getByLabelText("メールアドレス")).toHaveAttribute("aria-invalid", "true");
     });
 
     it("全フィールド未入力で送信すると住所フィールドが invalid になる", async () => {
@@ -43,18 +37,9 @@ describe("CustomerNewForm", () => {
 
       await user.click(screen.getByRole("button", { name: "登録" }));
 
-      expect(screen.getByLabelText("郵便番号")).toHaveAttribute(
-        "aria-invalid",
-        "true"
-      );
-      expect(screen.getByLabelText("都道府県")).toHaveAttribute(
-        "aria-invalid",
-        "true"
-      );
-      expect(screen.getByLabelText("市区町村")).toHaveAttribute(
-        "aria-invalid",
-        "true"
-      );
+      expect(screen.getByLabelText("郵便番号")).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByLabelText("都道府県")).toHaveAttribute("aria-invalid", "true");
+      expect(screen.getByLabelText("市区町村")).toHaveAttribute("aria-invalid", "true");
     });
   });
 
@@ -66,10 +51,7 @@ describe("CustomerNewForm", () => {
       await user.click(screen.getByLabelText("名前"));
       await user.tab();
 
-      expect(screen.getByLabelText("名前")).toHaveAttribute(
-        "aria-invalid",
-        "true"
-      );
+      expect(screen.getByLabelText("名前")).toHaveAttribute("aria-invalid", "true");
     });
 
     it("email に不正なフォーマットを入力してフォーカスアウトするとエラーメッセージが表示される", async () => {
@@ -79,9 +61,7 @@ describe("CustomerNewForm", () => {
       await user.type(screen.getByLabelText("メールアドレス"), "not-an-email");
       await user.tab();
 
-      expect(
-        screen.getByText("有効なメールアドレスを入力してください")
-      ).toBeInTheDocument();
+      expect(screen.getByText("有効なメールアドレスを入力してください")).toBeInTheDocument();
     });
   });
 });

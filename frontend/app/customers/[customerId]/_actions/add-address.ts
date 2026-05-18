@@ -1,7 +1,7 @@
 "use server";
 
-import { revalidateTag } from "next/cache";
 import { parseWithZod } from "@conform-to/zod/v4";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { apiClient } from "@/lib/api-client";
 
@@ -16,11 +16,7 @@ const schema = z.object({
     .transform((v) => v === "on"),
 });
 
-export async function addAddress(
-  customerId: string,
-  _prevState: unknown,
-  formData: FormData,
-) {
+export async function addAddress(customerId: string, _prevState: unknown, formData: FormData) {
   const submission = parseWithZod(formData, { schema });
   if (submission.status !== "success") {
     return submission.reply();

@@ -1,8 +1,8 @@
 "use client";
 
-import { useActionState } from "react";
 import { useForm } from "@conform-to/react";
 import { parseWithZod } from "@conform-to/zod/v4";
+import { useActionState } from "react";
 import { z } from "zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -30,7 +30,7 @@ export function ShippingAddressForm({ customerId, mode, address, onCancel }: Pro
   const boundAction =
     mode === "add"
       ? addAddress.bind(null, customerId)
-      : updateAddress.bind(null, customerId, address!.id);
+      : updateAddress.bind(null, customerId, address?.id);
 
   const [lastResult, action] = useActionState(boundAction, null);
 
@@ -39,11 +39,11 @@ export function ShippingAddressForm({ customerId, mode, address, onCancel }: Pro
     defaultValue:
       mode === "edit"
         ? {
-            postalCode: address!.address.postalCode,
-            prefecture: address!.address.prefecture,
-            city: address!.address.city,
-            street: address!.address.street,
-            isDefault: address!.isDefault ? "on" : undefined,
+            postalCode: address?.address.postalCode,
+            prefecture: address?.address.prefecture,
+            city: address?.address.city,
+            street: address?.address.street,
+            isDefault: address?.isDefault ? "on" : undefined,
           }
         : undefined,
     onValidate({ formData }) {
@@ -61,9 +61,7 @@ export function ShippingAddressForm({ customerId, mode, address, onCancel }: Pro
       noValidate
       className="rounded-lg border p-4"
     >
-      <h3 className="mb-4 text-sm font-semibold">
-        {mode === "add" ? "住所を追加" : "住所を編集"}
-      </h3>
+      <h3 className="mb-4 text-sm font-semibold">{mode === "add" ? "住所を追加" : "住所を編集"}</h3>
       <div className="grid gap-4">
         <div className="grid gap-1.5">
           <Label htmlFor={fields.postalCode.id}>郵便番号</Label>

@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { CustomerEditForm } from "../customer-edit-form";
 import type { Customer } from "@/types/customer";
+import { CustomerEditForm } from "../customer-edit-form";
 
 jest.mock("../../../_actions/update-customer", () => ({
   updateCustomer: jest.fn(),
@@ -18,16 +18,12 @@ const baseCustomer: Customer = {
 describe("CustomerEditForm", () => {
   describe("初期値の表示", () => {
     it("顧客の name が初期値として表示される", () => {
-      render(
-        <CustomerEditForm customer={baseCustomer} onCancel={jest.fn()} />
-      );
+      render(<CustomerEditForm customer={baseCustomer} onCancel={jest.fn()} />);
       expect(screen.getByLabelText("名前")).toHaveValue("山田太郎");
     });
 
     it("顧客の email が初期値として表示される", () => {
-      render(
-        <CustomerEditForm customer={baseCustomer} onCancel={jest.fn()} />
-      );
+      render(<CustomerEditForm customer={baseCustomer} onCancel={jest.fn()} />);
       expect(screen.getByLabelText("メール")).toHaveValue("taro@example.com");
     });
   });
@@ -35,9 +31,7 @@ describe("CustomerEditForm", () => {
   describe("onBlur バリデーション", () => {
     it("name を空にしてフォーカスアウトすると invalid になる", async () => {
       const user = userEvent.setup();
-      render(
-        <CustomerEditForm customer={baseCustomer} onCancel={jest.fn()} />
-      );
+      render(<CustomerEditForm customer={baseCustomer} onCancel={jest.fn()} />);
 
       const nameInput = screen.getByLabelText("名前");
       await user.clear(nameInput);
@@ -48,18 +42,14 @@ describe("CustomerEditForm", () => {
 
     it("email に不正なフォーマットを入力してフォーカスアウトするとエラーメッセージが表示される", async () => {
       const user = userEvent.setup();
-      render(
-        <CustomerEditForm customer={baseCustomer} onCancel={jest.fn()} />
-      );
+      render(<CustomerEditForm customer={baseCustomer} onCancel={jest.fn()} />);
 
       const emailInput = screen.getByLabelText("メール");
       await user.clear(emailInput);
       await user.type(emailInput, "not-an-email");
       await user.tab();
 
-      expect(
-        screen.getByText("有効なメールアドレスを入力してください")
-      ).toBeInTheDocument();
+      expect(screen.getByText("有効なメールアドレスを入力してください")).toBeInTheDocument();
     });
   });
 

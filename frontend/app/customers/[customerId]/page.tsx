@@ -1,8 +1,8 @@
 import { Suspense } from "react";
 import { CustomerProfileContainer } from "./_components/customer-profile/customer-profile-container";
-import { ShippingAddressListContainer } from "./_components/shipping-addresses/shipping-address-list-container";
 import { OrderHistoryContainer } from "./_components/order-history/order-history-container";
 import { OrderHistorySkeleton } from "./_components/order-history/order-history-skeleton";
+import { ShippingAddressListContainer } from "./_components/shipping-addresses/shipping-address-list-container";
 
 export default async function CustomerDetailPage({
   params,

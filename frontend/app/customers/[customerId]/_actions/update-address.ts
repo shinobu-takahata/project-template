@@ -1,7 +1,7 @@
 "use server";
 
-import { revalidateTag } from "next/cache";
 import { parseWithZod } from "@conform-to/zod/v4";
+import { revalidateTag } from "next/cache";
 import { z } from "zod";
 import { apiClient } from "@/lib/api-client";
 
@@ -27,10 +27,7 @@ export async function updateAddress(
     return submission.reply();
   }
 
-  await apiClient.put(
-    `/customers/${customerId}/addresses/${addressId}`,
-    submission.value,
-  );
+  await apiClient.put(`/customers/${customerId}/addresses/${addressId}`, submission.value);
   revalidateTag(`customer-${customerId}`, { expire: 0 });
 
   return submission.reply();

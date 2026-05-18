@@ -1,7 +1,7 @@
 "use client";
 
-import { useState } from "react";
 import { Pencil, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import type { ShippingAddress } from "@/types/customer";
@@ -36,7 +36,9 @@ export function ShippingAddressCard({
         <div className="text-sm">
           <p className="text-muted-foreground">〒{postalCode}</p>
           <p className="font-medium">
-            {prefecture}{city}{street}
+            {prefecture}
+            {city}
+            {street}
           </p>
           {address.isDefault && (
             <Badge variant="secondary" className="mt-1">
@@ -45,23 +47,11 @@ export function ShippingAddressCard({
           )}
         </div>
         <div className="flex shrink-0 gap-1">
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setIsEditing(true)}
-            aria-label="編集"
-          >
+          <Button variant="ghost" size="icon" onClick={() => setIsEditing(true)} aria-label="編集">
             <Pencil className="h-4 w-4" />
           </Button>
-          <form
-            action={deleteAddress.bind(null, customerId, address.id)}
-          >
-            <Button
-              type="submit"
-              variant="ghost"
-              size="icon"
-              aria-label="削除"
-            >
+          <form action={deleteAddress.bind(null, customerId, address.id)}>
+            <Button type="submit" variant="ghost" size="icon" aria-label="削除">
               <Trash2 className="h-4 w-4 text-destructive" />
             </Button>
           </form>

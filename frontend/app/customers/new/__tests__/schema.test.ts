@@ -25,9 +25,7 @@ describe("createCustomerSchema", () => {
       const result = createCustomerSchema.safeParse({ ...validInput, name: "" });
       expect(result.success).toBe(false);
       if (!result.success) {
-        const nameErrors = result.error.issues.filter((i) =>
-          i.path.includes("name")
-        );
+        const nameErrors = result.error.issues.filter((i) => i.path.includes("name"));
         expect(nameErrors.length).toBeGreaterThan(0);
         expect(nameErrors[0].message).toBe("名前を入力してください");
       }
@@ -47,13 +45,9 @@ describe("createCustomerSchema", () => {
       });
       expect(result.success).toBe(false);
       if (!result.success) {
-        const emailErrors = result.error.issues.filter((i) =>
-          i.path.includes("email")
-        );
+        const emailErrors = result.error.issues.filter((i) => i.path.includes("email"));
         expect(emailErrors.length).toBeGreaterThan(0);
-        expect(emailErrors[0].message).toBe(
-          "有効なメールアドレスを入力してください"
-        );
+        expect(emailErrors[0].message).toBe("有効なメールアドレスを入力してください");
       }
     });
   });
@@ -81,9 +75,7 @@ describe("createCustomerSchema", () => {
         });
         expect(result.success).toBe(false);
         if (!result.success) {
-          const errors = result.error.issues.filter((i) =>
-            i.path.includes(field)
-          );
+          const errors = result.error.issues.filter((i) => i.path.includes(field));
           expect(errors.length).toBeGreaterThan(0);
           expect(errors[0].message).toBe(message);
         }

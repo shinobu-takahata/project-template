@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { ShippingAddressCard } from "../shipping-address-card";
 import type { ShippingAddress } from "@/types/customer";
+import { ShippingAddressCard } from "../shipping-address-card";
 
 jest.mock("../../../_actions/delete-address", () => ({
   deleteAddress: jest.fn(),
@@ -10,7 +10,7 @@ jest.mock("../../../_actions/delete-address", () => ({
 jest.mock("../shipping-address-form", () => ({
   ShippingAddressForm: ({ onCancel }: { onCancel: () => void }) => (
     <div data-testid="shipping-address-form">
-      <button onClick={onCancel}>フォームキャンセル</button>
+      <button type="button" onClick={onCancel}>フォームキャンセル</button>
     </div>
   ),
 }));
@@ -45,10 +45,7 @@ describe("ShippingAddressCard", () => {
 
     it("isDefault が true のとき「デフォルト住所」バッジが表示される", () => {
       render(
-        <ShippingAddressCard
-          customerId="cust-1"
-          address={{ ...baseAddress, isDefault: true }}
-        />
+        <ShippingAddressCard customerId="cust-1" address={{ ...baseAddress, isDefault: true }} />,
       );
       expect(screen.getByText("デフォルト住所")).toBeInTheDocument();
     });
