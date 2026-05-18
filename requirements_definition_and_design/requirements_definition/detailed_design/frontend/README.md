@@ -1,0 +1,3 @@
+[基本設計書](requirements_definition_and_design/requirements_definition/based_design/ui/screen-item-definition-template.md)
+
+上記をそのままに、どの画面を実装して欲しいかClaude codeにお願いすれば良い
